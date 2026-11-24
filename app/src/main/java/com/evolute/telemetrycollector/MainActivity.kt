@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
     private lateinit var chart: TelemetryChartView
+    private lateinit var historyRows: LinearLayout
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -139,6 +140,9 @@ class MainActivity : Activity() {
         history.addView(chart, LinearLayout.LayoutParams(-1, dp(132)))
         addGap(history, 8)
         history.addView(text("График строится по сохранённым снимкам телеметрии", 10f, muted))
+        addGap(history, 10)
+        historyRows = column()
+        history.addView(historyRows)
         content.addView(history)
 
         addGap(content, 12)
@@ -279,7 +283,22 @@ class MainActivity : Activity() {
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
-        chart.setValues(db.recentSnapshots(24).map { it.soc.toFloat() })
+        val snapshots = db.recentSnapshots(24)
+        chart.setValues(snapshots.map { it.soc.toFloat() })
+        historyRows.removeAllViews()
+        snapshots.asReversed().take(6).forEach { item ->
+            val line = row().apply {
+                setPadding(0, dp(7), 0, dp(7))
+                addView(text(item.capturedAt.replace("T", " ").take(16), 10f, muted),
+                    LinearLayout.LayoutParams(0, -2, 1f))
+                addView(text("${item.soc.toInt()}%", 12f, accent, true))
+                addView(text("  ·  ${item.odometer.toInt()} км", 10f, white))
+            }
+            historyRows.addView(line)
+            val divider = View(this).apply { setBackgroundColor(Color.rgb(44, 58, 66)) }
+            historyRows.addView(divider, LinearLayout.LayoutParams(-1, dp(1)))
+        }
+        if (snapshots.isEmpty()) historyRows.addView(text("История появится после первых измерений", 10f, muted))
     }
 
     private fun refreshStatus() {
