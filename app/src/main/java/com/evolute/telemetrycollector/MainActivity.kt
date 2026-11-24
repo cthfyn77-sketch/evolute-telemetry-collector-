@@ -54,10 +54,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = KeystoreTokenStore(this)
-        if (store.get() == null) buildAuthUi() else {
-            buildUi()
-            autoStartCollectorIfAuthorized()
-        }
+        buildUi()
+        if (store.get() != null) autoStartCollectorIfAuthorized()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -145,6 +143,43 @@ class MainActivity : Activity() {
             addView(text("● ONLINE", 12f, accent, true))
         })
         addGap(content, 20)
+
+        // Keep sign-in on the dashboard until a valid session is saved.
+        if (store.get() == null) {
+            val auth = card()
+            auth.addView(text("АВТОРИЗАЦИЯ EVACONNECT", 14f, white, true))
+            addGap(auth, 8)
+            auth.addView(text("Войдите в аккаунт, чтобы включить автоматический сбор телеметрии.", 12f, muted))
+            addGap(auth, 14)
+            phone = edit("Телефон с кодом страны, без +", 3)
+            country = edit("Страна (две буквы)", 0).apply { setText("RU") }
+            code = edit("Код из SMS", 2)
+            auth.addView(phone); addGap(auth, 8)
+            auth.addView(country); addGap(auth, 8)
+            auth.addView(code); addGap(auth, 12)
+            auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
+                runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
+            })
+            addGap(auth, 8)
+            auth.addView(actionButton("ВОЙТИ", accent, bg) {
+                runTask {
+                    ApiClient(store).signIn(phone.text.toString(), code.text.toString())
+                    withContext(Dispatchers.Main) {
+                        buildUi()
+                        requestNotificationPermission()
+                        ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, CollectorService::class.java))
+                    }
+                    "Авторизация успешна · автоматический сбор запущен"
+                }
+            })
+            addGap(auth, 10)
+            authFeedback = text("Ожидание авторизации", 11f, muted)
+            auth.addView(authFeedback)
+            addGap(auth, 10)
+            auth.addView(text("Токены хранятся в защищённом Android Keystore. Команды автомобилю не отправляются.", 10f, muted))
+            content.addView(auth)
+            addGap(content, 12)
+        }
 
         val hero = card()
         hero.addView(text("УРОВЕНЬ ЗАРЯДА", 11f, muted, true))
