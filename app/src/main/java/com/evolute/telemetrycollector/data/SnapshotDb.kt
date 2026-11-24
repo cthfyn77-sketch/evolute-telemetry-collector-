@@ -46,8 +46,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
     }
 
     /** Estimated range based on 1-km SOC checkpoints, smoothed over the last 10 km. */
-    fun calculatedRangeKm(): Double? {
-        val history = readableDatabase.rawQuery(
+    private fun estimationHistory(): List<TelemetrySnapshot> = readableDatabase.rawQuery(
             "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC",
             null
         ).use { c ->
@@ -59,8 +58,9 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             ))
             rows
         }
-        return RangeEstimator.estimate(history)
-    }
+    fun calculatedRangeKm(): Double? = RangeEstimator.estimate(estimationHistory())
+
+    fun averageConsumptionPer100Km(): Double? = RangeEstimator.consumptionPer100Km(estimationHistory())
 
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM snapshots", null).use {
         it.moveToFirst(); it.getLong(0)
