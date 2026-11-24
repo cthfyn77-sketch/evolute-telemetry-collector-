@@ -51,6 +51,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         store = KeystoreTokenStore(this)
         buildUi()
+        autoStartCollectorIfAuthorized()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -319,6 +320,28 @@ class MainActivity : Activity() {
     override fun onPause() {
         statusJob?.cancel(); statusJob = null
         super.onPause()
+    }
+
+    /**
+     * Start the foreground collector automatically whenever the user opens the app.
+     * First-time SMS sign-in remains a one-time manual action; tokens are reused
+     * from Android Keystore on all subsequent launches.
+     */
+    private fun autoStartCollectorIfAuthorized() {
+        try {
+            if (store.get() == null) {
+                show("Для автоматического сбора сначала выполните вход один раз")
+                return
+            }
+            requestNotificationPermission()
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, CollectorService::class.java)
+            )
+            show("Автоматический сбор запущен · опрос каждые 30 секунд")
+        } catch (e: Exception) {
+            show("Не удалось автоматически запустить сбор: ${e.message ?: e.javaClass.simpleName}")
+        }
     }
 
     private fun requestNotificationPermission() {
