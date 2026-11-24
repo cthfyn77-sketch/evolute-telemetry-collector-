@@ -19,9 +19,9 @@ internal object RangeEstimator {
         var nextCheckpoint = kotlin.math.floor(ordered.first().odometer / STEP_KM + EPSILON) *
             STEP_KM + STEP_KM
 
-        for (index in 1 until history.size) {
-            val previous = history[index - 1]
-            val current = history[index]
+        for (index in 1 until ordered.size) {
+            val previous = ordered[index - 1]
+            val current = ordered[index]
             val distance = current.odometer - previous.odometer
             if (distance <= EPSILON) continue
 
