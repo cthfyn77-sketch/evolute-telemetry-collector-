@@ -14,12 +14,13 @@ import kotlinx.coroutines.*
 
 class CollectorService : Service() {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
+    private var pollJob: Job? = null
     override fun onBind(intent:Intent?): IBinder? = null
     override fun onCreate() { super.onCreate(); startForeground(NOTIFICATION_ID,notification()) }
     override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int {
-        if(intent?.action=="STOP") { scope.cancel(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY }
-        if(scope.coroutineContext[Job]?.isActive==true) return START_STICKY
-        scope.launch {
+        if(intent?.action=="STOP") { pollJob?.cancel(); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY }
+        if(pollJob?.isActive==true) return START_STICKY
+        pollJob = scope.launch {
             val api=ApiClient(KeystoreTokenStore(this@CollectorService))
             while(isActive) {
                 try {
@@ -37,9 +38,7 @@ class CollectorService : Service() {
         if(Build.VERSION.SDK_INT>=26) nm.createNotificationChannel(NotificationChannel(CHANNEL,"Сбор телеметрии",NotificationManager.IMPORTANCE_LOW))
         return buildNotification("Сбор данных каждые 30 секунд")
     }
-    private fun buildNotification(s:String)=if(Build.VERSION.SDK_INT>=26)
-        Notification.Builder(this,CHANNEL).setContentTitle("Evolute Telemetry Collector").setContentText(s).setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true).build()
-        else @Suppress("DEPRECATION") Notification.Builder(this).setContentTitle("Evolute Telemetry Collector").setContentText(s).setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true).build()
+    private fun buildNotification(s:String)=Notification.Builder(this,CHANNEL).setContentTitle("Evolute Telemetry Collector").setContentText(s).setSmallIcon(android.R.drawable.stat_notify_sync).setOngoing(true).build()
     private fun updateNotification(s:String) { getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID,buildNotification(s)) }
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
     companion object { private const val CHANNEL="collector"; private const val NOTIFICATION_ID=401 }
