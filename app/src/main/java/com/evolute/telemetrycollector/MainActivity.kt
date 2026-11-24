@@ -4,9 +4,14 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.core.app.ActivityCompat
@@ -17,67 +22,305 @@ import com.evolute.telemetrycollector.data.SnapshotDb
 import kotlinx.coroutines.*
 
 class MainActivity : Activity() {
-    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var statusJob: Job? = null
-    private lateinit var phone:EditText; private lateinit var country:EditText; private lateinit var code:EditText
-    private lateinit var status:TextView; private lateinit var actionStatus:TextView
-    private lateinit var store:KeystoreTokenStore
-    private val csvRequest=72
-    override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState); store=KeystoreTokenStore(this); buildUi() }
+    private lateinit var phone: EditText
+    private lateinit var country: EditText
+    private lateinit var code: EditText
+    private lateinit var status: TextView
+    private lateinit var actionStatus: TextView
+    private lateinit var socValue: TextView
+    private lateinit var socBar: View
+    private lateinit var rangeValue: TextView
+    private lateinit var odometerValue: TextView
+    private lateinit var recordValue: TextView
+    private lateinit var connectionValue: TextView
+    private lateinit var chart: TelemetryChartView
+    private lateinit var store: KeystoreTokenStore
+    private val csvRequest = 72
+
+    private val bg = Color.rgb(12, 19, 24)
+    private val surface = Color.rgb(23, 34, 42)
+    private val surface2 = Color.rgb(29, 43, 52)
+    private val accent = Color.rgb(91, 218, 193)
+    private val muted = Color.rgb(151, 172, 181)
+    private val white = Color.rgb(241, 247, 248)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        store = KeystoreTokenStore(this)
+        buildUi()
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    private fun rounded(color: Int, radius: Int = 18): GradientDrawable =
+        GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
+
+    private fun text(value: String, size: Float, color: Int = white, bold: Boolean = false): TextView =
+        TextView(this).apply {
+            text = value; textSize = size; setTextColor(color)
+            if (bold) setTypeface(typeface, Typeface.BOLD)
+        }
+
+    private fun column(): LinearLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+    private fun row(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
+    private fun card(): LinearLayout = column().apply {
+        background = rounded(surface)
+        setPadding(dp(16), dp(15), dp(16), dp(15))
+    }
+
+    private fun addGap(parent: LinearLayout, height: Int = 12) {
+        parent.addView(View(this), LinearLayout.LayoutParams(1, dp(height)))
+    }
+
     private fun buildUi() {
-        val root=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(28,28,28,28) }
-        fun label(s:String) { root.addView(TextView(this).apply { text=s; textSize=16f; setPadding(0,12,0,4) }) }
-        phone=EditText(this).apply { hint="Телефон с кодом страны, без +"; inputType=3 }; country=EditText(this).apply { hint="Страна (две буквы), например RU"; setText("RU") }
-        code=EditText(this).apply { hint="Код из SMS"; inputType=2 }
-        root.addView(TextView(this).apply { text="Evolute Telemetry Collector"; textSize=23f })
-        label("Авторизация Evolute"); root.addView(phone); root.addView(country); root.addView(code)
-        root.addView(btn("Запросить SMS-код") { runTask { ApiClient(store).requestOtp(phone.text.toString(),country.text.toString()); "Запрос кода отправлен" } })
-        root.addView(btn("Войти") { runTask { ApiClient(store).signIn(phone.text.toString(),code.text.toString()); "Авторизация сохранена в Android Keystore" } })
-        label("Сбор телеметрии"); root.addView(btn("Начать сбор") { if(store.get()==null) show("Сначала войдите в аккаунт") else { requestNotificationPermission(); ContextCompat.startForegroundService(this,Intent(this,CollectorService::class.java)); show("Сбор запущен. Интервал 30 секунд.") } })
-        root.addView(btn("Остановить сбор") { startService(Intent(this,CollectorService::class.java).setAction("STOP")); show("Остановка отправлена") })
-        root.addView(btn("Обновить статус / число записей") { refreshStatus() })
-        root.addView(btn("Экспорт CSV") { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/csv").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"evolute-telemetry.csv"),csvRequest) })
-        label("Состояние сбора (обновляется автоматически)"); status=TextView(this).apply { textSize=14f }; root.addView(status)
-        label("Результат последнего действия"); actionStatus=TextView(this).apply { textSize=14f }; root.addView(actionStatus)
-        root.addView(TextView(this).apply { text="Только чтение API. Команды автомобилю не отправляются. Расчёта запаса хода нет."; textSize=12f; setPadding(0,18,0,0) })
-        setContentView(ScrollView(this).apply { addView(root,ViewGroup.LayoutParams(-1,-2)) }); refreshStatus()
+        val content = column().apply { setPadding(dp(18), dp(22), dp(18), dp(28)) }
+        content.addView(row().apply {
+            addView(text("EV", 24f, accent, true))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(9), 0, 0, 0)
+                addView(text("EVOLUTE", 19f, white, true))
+                addView(text("TELEMETRY  /  PRO", 10f, muted, true))
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text("● ONLINE", 12f, accent, true))
+        })
+        addGap(content, 20)
+
+        val hero = card()
+        hero.addView(text("УРОВЕНЬ ЗАРЯДА", 11f, muted, true))
+        addGap(hero, 4)
+        val socRow = row()
+        socValue = text("—%", 43f, white, true)
+        socRow.addView(socValue, LinearLayout.LayoutParams(0, -2, 1f))
+        socRow.addView(text("SOC", 12f, accent, true))
+        hero.addView(socRow)
+        addGap(hero, 10)
+        socBar = View(this).apply { background = rounded(accent, 8) }
+        val track = FrameLayout(this).apply {
+            background = rounded(Color.rgb(49, 65, 73), 8)
+            addView(socBar, FrameLayout.LayoutParams(0, dp(8)))
+        }
+        hero.addView(track, LinearLayout.LayoutParams(-1, dp(8)))
+        addGap(hero, 9)
+        connectionValue = text("Ожидание телеметрии", 12f, muted)
+        hero.addView(connectionValue)
+        content.addView(hero)
+
+        addGap(content, 12)
+        val metrics = row()
+        val rangeCard = card()
+        rangeCard.addView(text("ЗАПАС ХОДА", 10f, muted, true))
+        rangeValue = text("— км", 25f, white, true)
+        rangeCard.addView(rangeValue)
+        rangeCard.addView(text("Штатный показатель", 10f, muted))
+        val odoCard = card()
+        odoCard.addView(text("ОДОМЕТР", 10f, muted, true))
+        odometerValue = text("— км", 25f, white, true)
+        odoCard.addView(odometerValue)
+        odoCard.addView(text("Пробег автомобиля", 10f, muted))
+        metrics.addView(rangeCard, LinearLayout.LayoutParams(0, -2, 1f))
+        metrics.addView(View(this), LinearLayout.LayoutParams(dp(10), 1))
+        metrics.addView(odoCard, LinearLayout.LayoutParams(0, -2, 1f))
+        content.addView(metrics)
+
+        addGap(content, 12)
+        val history = card()
+        history.addView(row().apply {
+            addView(text("ИСТОРИЯ SOC", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text("ПОСЛЕДНИЕ ЗАПИСИ", 9f, muted, true))
+        })
+        addGap(history, 12)
+        chart = TelemetryChartView(this).apply { setValues(emptyList()) }
+        history.addView(chart, LinearLayout.LayoutParams(-1, dp(132)))
+        addGap(history, 8)
+        history.addView(text("График строится по сохранённым снимкам телеметрии", 10f, muted))
+        content.addView(history)
+
+        addGap(content, 12)
+        val collection = card()
+        collection.addView(row().apply {
+            addView(text("СБОР ТЕЛЕМЕТРИИ", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text("● 30 СЕК", 10f, accent, true))
+        })
+        addGap(collection, 10)
+        recordValue = text("Записей в базе: 0", 14f, white, true)
+        collection.addView(recordValue)
+        addGap(collection, 5)
+        status = text("Ожидание первого опроса", 11f, muted)
+        collection.addView(status)
+        addGap(collection, 12)
+        collection.addView(actionButton("НАЧАТЬ СБОР", accent, bg) {
+            if (store.get() == null) show("Сначала выполните авторизацию")
+            else {
+                requestNotificationPermission()
+                ContextCompat.startForegroundService(this, Intent(this, CollectorService::class.java))
+                show("Сбор запущен · интервал 30 секунд")
+            }
+        })
+        addGap(collection, 8)
+        collection.addView(row().apply {
+            addView(actionButton("ОСТАНОВИТЬ", surface2, white) {
+                startService(Intent(this@MainActivity, CollectorService::class.java).setAction("STOP"))
+                show("Команда остановки отправлена")
+            }, LinearLayout.LayoutParams(0, dp(48), 1f))
+            addView(View(this@MainActivity), LinearLayout.LayoutParams(dp(8), 1))
+            addView(actionButton("ОБНОВИТЬ", surface2, white) { refreshStatus() },
+                LinearLayout.LayoutParams(0, dp(48), 1f))
+        })
+        addGap(collection, 8)
+        collection.addView(actionButton("ЭКСПОРТ CSV", surface2, accent) {
+            startActivityForResult(
+                Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/csv")
+                    .addCategory(Intent.CATEGORY_OPENABLE)
+                    .putExtra(Intent.EXTRA_TITLE, "evolute-telemetry.csv"), csvRequest
+            )
+        })
+        content.addView(collection)
+
+        addGap(content, 12)
+        val auth = card()
+        auth.addView(text("АККАУНТ EVOLUTE", 12f, white, true))
+        addGap(auth, 8)
+        phone = edit("Телефон с кодом страны, без +", 3)
+        country = edit("Страна (две буквы)", 0).apply { setText("RU") }
+        code = edit("Код из SMS", 2)
+        auth.addView(phone); addGap(auth, 6)
+        auth.addView(country); addGap(auth, 6)
+        auth.addView(code); addGap(auth, 10)
+        auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
+            runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "Запрос SMS-кода отправлен" }
+        })
+        addGap(auth, 8)
+        auth.addView(actionButton("ВОЙТИ", accent, bg) {
+            runTask { ApiClient(store).signIn(phone.text.toString(), code.text.toString()); "Авторизация сохранена в защищённом хранилище" }
+        })
+        addGap(auth, 10)
+        auth.addView(text("Токены хранятся в Android Keystore. Команды автомобилю не отправляются.", 10f, muted))
+        content.addView(auth)
+
+        addGap(content, 12)
+        val result = card()
+        result.addView(text("ПОСЛЕДНЕЕ ДЕЙСТВИЕ", 10f, muted, true))
+        actionStatus = text("Готово к работе", 12f, white)
+        result.addView(actionStatus)
+        content.addView(result)
+        addGap(content, 18)
+        content.addView(text("EVOLUTE TELEMETRY COLLECTOR  ·  LOCAL DATA ONLY", 9f, muted).apply {
+            gravity = Gravity.CENTER
+        })
+
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(bg)
+            isFillViewport = true
+            addView(content, ViewGroup.LayoutParams(-1, -2))
+        }
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
+        window.decorView.systemUiVisibility = 0
+        setContentView(scroll)
+        refreshStatus()
     }
-    private fun btn(t:String,action:()->Unit)=Button(this).apply { text=t; setOnClickListener { action() } }
-    private fun runTask(block:suspend ()->String) { scope.launch { try { val result=withContext(Dispatchers.IO) { block() }; show(result) } catch(e:Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") } } }
-    private fun show(s:String) { actionStatus.text=s }
-    private fun statusText(): String {
-        val db=SnapshotDb.get(this)
-        val prefs = getSharedPreferences("collector_status", MODE_PRIVATE)
-        val last = prefs.getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
-        val updated = prefs.getLong("updated_at", 0L)
-        val whenText = if (updated == 0L) "" else " (${java.time.Instant.ofEpochMilli(updated)})"
-        return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null) +
-            "\nПоследний статус evaconnect: $last$whenText"
+
+    private fun edit(hintText: String, input: Int) = EditText(this).apply {
+        hint = hintText; inputType = input
+        textSize = 14f; setTextColor(white); setHintTextColor(muted)
+        background = rounded(surface2, 12)
+        setPadding(dp(13), dp(10), dp(13), dp(10))
+        minHeight = dp(48)
     }
-    private suspend fun updateStatus() {
-        try {
-            status.text=withContext(Dispatchers.IO) { statusText() }
-        } catch(e:Exception) {
-            status.text="Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}"
+
+    private fun actionButton(label: String, fill: Int, foreground: Int, action: () -> Unit) =
+        TextView(this).apply {
+            text = label; textSize = 12f; typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER; setTextColor(foreground)
+            background = rounded(fill, 13)
+            setPadding(dp(12), dp(13), dp(12), dp(13))
+            isClickable = true; isFocusable = true
+            setOnClickListener { action() }
+            minHeight = dp(48)
+        }
+
+    private fun runTask(block: suspend () -> String) {
+        scope.launch {
+            try { show(withContext(Dispatchers.IO) { block() }) }
+            catch (e: Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") }
         }
     }
-    private fun refreshStatus() { scope.launch { updateStatus() } }
+
+    private fun show(value: String) { actionStatus.text = value }
+
+    private fun updateDashboard() {
+        val db = SnapshotDb.get(this)
+        val latest = db.latestSnapshot()
+        recordValue.text = "Записей в базе: ${db.count()}"
+        if (latest == null) {
+            socValue.text = "—%"
+            rangeValue.text = "— км"
+            odometerValue.text = "— км"
+            connectionValue.text = "Ожидание телеметрии"
+        } else {
+            socValue.text = "${latest.soc.toInt()}%"
+            rangeValue.text = latest.stockRange?.let { "${it.toInt()} км" } ?: "— км"
+            odometerValue.text = "${latest.odometer.toInt()} км"
+            connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
+            connectionValue.setTextColor(if (latest.online) accent else muted)
+            val width = (resources.displayMetrics.widthPixels - dp(68)).coerceAtLeast(dp(100))
+            val params = socBar.layoutParams
+            params.width = (width * (latest.soc.coerceIn(0.0, 100.0) / 100.0)).toInt()
+            socBar.layoutParams = params
+        }
+        val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
+        val last = getSharedPreferences("collector_status", MODE_PRIVATE)
+            .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
+        val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
+        status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
+        chart.setValues(db.recentSnapshots(24).map { it.soc.toFloat() })
+    }
+
+    private fun refreshStatus() {
+        scope.launch {
+            try { withContext(Dispatchers.IO) { SnapshotDb.get(this@MainActivity).count() }; updateDashboard() }
+            catch (e: Exception) { status.text = "Ошибка чтения базы: ${e.message}" }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         statusJob?.cancel()
-        statusJob=scope.launch {
-            while(isActive) {
-                updateStatus()
-                delay(3_000)
+        statusJob = scope.launch {
+            while (isActive) { refreshStatus(); delay(3000) }
+        }
+    }
+
+    override fun onPause() {
+        statusJob?.cancel(); statusJob = null
+        super.onPause()
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 55)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == csvRequest && resultCode == RESULT_OK) {
+            val uri: Uri = data?.data ?: return
+            scope.launch(Dispatchers.IO) {
+                try {
+                    contentResolver.openOutputStream(uri)?.use { SnapshotDb.get(this@MainActivity).exportCsv(it) }
+                    withContext(Dispatchers.Main) { show("CSV экспортирован") }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) { show("Ошибка экспорта: ${e.message}") }
+                }
             }
         }
     }
-    override fun onPause() {
-        statusJob?.cancel()
-        statusJob=null
-        super.onPause()
-    }
-    private fun requestNotificationPermission() { if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.POST_NOTIFICATIONS),55) }
-    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) { super.onActivityResult(requestCode,resultCode,data); if(requestCode==csvRequest && resultCode==RESULT_OK) { val uri=data?.data ?: return; scope.launch(Dispatchers.IO) { try { contentResolver.openOutputStream(uri)?.use { SnapshotDb.get(this@MainActivity).exportCsv(it) }; withContext(Dispatchers.Main) { show("CSV экспортирован") } } catch(e:Exception) { withContext(Dispatchers.Main) { show("Ошибка экспорта: ${e.message}") } } } } }
+
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
 }
