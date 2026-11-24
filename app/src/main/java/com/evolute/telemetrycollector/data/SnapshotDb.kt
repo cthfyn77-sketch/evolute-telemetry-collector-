@@ -38,7 +38,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready\n")
             readableDatabase.rawQuery("SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready FROM snapshots ORDER BY id",null).use { c ->
                 while(c.moveToNext()) {
-                    val row=(0..6).joinToString(",") { i -> if(c.isNull(i)) "" else c.getString(i).replace("\"",""\"\"").let { "\"$it\"" } }
+                    val row=(0..6).joinToString(",") { i -> if(c.isNull(i)) "" else "\\\"" + c.getString(i).replace("\\\"", "\\\"\\\"") + "\\\"" }
                     w.write(row+"\n")
                 }
             }
