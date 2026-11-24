@@ -44,5 +44,15 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             }
         }
     }
-    companion object { @Volatile private var instance: SnapshotDb?=null; fun get(c:Context)=instance ?: synchronized(this) { instance ?: SnapshotDb(c.applicationContext).also { instance=it } } }
+    companion object {
+        @Volatile private var instance: SnapshotDb? = null
+        fun get(c: Context) = instance ?: synchronized(this) {
+            instance ?: SnapshotDb(c.applicationContext).also { instance = it }
+        }
+
+        internal fun resetForTests() = synchronized(this) {
+            instance?.close()
+            instance = null
+        }
+    }
 }
