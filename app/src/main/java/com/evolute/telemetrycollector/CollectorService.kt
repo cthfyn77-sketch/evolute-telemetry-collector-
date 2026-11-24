@@ -25,7 +25,7 @@ class CollectorService : Service() {
             while(isActive) {
                 try {
                     val tel=api.fetchTelemetry()
-                    if(tel.online && tel.ready) SnapshotDb.get(this@CollectorService).insert(tel)
+                    SnapshotDb.get(this@CollectorService).insert(tel)
                     updateNotification("Последний опрос: SOC ${tel.soc}%")
                 } catch(e:Exception) { updateNotification("Ошибка опроса: ${e.message?.take(90) ?: "API недоступен"}") }
                 delay(30_000)
