@@ -26,6 +26,8 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
                 "online": bool(getattr(telemetry, "is_online", False)),
                 "ready": bool(getattr(telemetry, "is_car_state_ready", False)),
                 "updated_at": str(getattr(telemetry, "car_state_updated_at", "") or ""),
+                # Preserve all sensors returned by the API; never log their values.
+                "sensors_json": json.dumps(getattr(telemetry, "sensors_raw", None) or sensors, ensure_ascii=False, separators=(",", ":"), default=str),
             }
     except Exception as exc:
         status = getattr(exc, "status_code", None)
