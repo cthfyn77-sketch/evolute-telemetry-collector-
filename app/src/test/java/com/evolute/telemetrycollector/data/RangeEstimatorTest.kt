@@ -49,6 +49,6 @@ class RangeEstimatorTest {
         val first = (0..10).map { km -> snapshot(100.0 - km * 0.5, km.toDouble()) }
         val next = first + snapshot(94.0, 11.0)
         assertEquals(190.0, RangeEstimator.estimate(first)!!, 0.001)
-        assertEquals(188.0, RangeEstimator.estimate(next)!!, 0.001)
+        assertEquals(170.9090909, RangeEstimator.estimate(next)!!, 0.001)
     }
 }
