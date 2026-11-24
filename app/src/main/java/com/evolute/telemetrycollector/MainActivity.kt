@@ -168,14 +168,8 @@ class MainActivity : Activity() {
             }
         })
         addGap(collection, 8)
-        collection.addView(row().apply {
-            addView(actionButton("ОСТАНОВИТЬ", surface2, white) {
-                startService(Intent(this@MainActivity, CollectorService::class.java).setAction("STOP"))
-                show("Команда остановки отправлена")
-            }, LinearLayout.LayoutParams(0, dp(48), 1f))
-            addView(View(this@MainActivity), LinearLayout.LayoutParams(dp(8), 1))
-            addView(actionButton("ОБНОВИТЬ", surface2, white) { refreshStatus() },
-                LinearLayout.LayoutParams(0, dp(48), 1f))
+        collection.addView(actionButton("ОБНОВИТЬ СТАТУС", surface2, white) {
+            refreshStatus()
         })
         addGap(collection, 8)
         collection.addView(actionButton("ЭКСПОРТ CSV", surface2, accent) {
@@ -202,7 +196,17 @@ class MainActivity : Activity() {
         })
         addGap(auth, 8)
         auth.addView(actionButton("ВОЙТИ", accent, bg) {
-            runTask { ApiClient(store).signIn(phone.text.toString(), code.text.toString()); "Авторизация сохранена в защищённом хранилище" }
+            runTask {
+                ApiClient(store).signIn(phone.text.toString(), code.text.toString())
+                withContext(Dispatchers.Main) {
+                    requestNotificationPermission()
+                    ContextCompat.startForegroundService(
+                        this@MainActivity,
+                        Intent(this@MainActivity, CollectorService::class.java)
+                    )
+                }
+                "Авторизация сохранена · автоматический сбор запущен"
+            }
         })
         addGap(auth, 10)
         auth.addView(text("Токены хранятся в Android Keystore. Команды автомобилю не отправляются.", 10f, muted))
