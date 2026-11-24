@@ -1,8 +1,8 @@
 package com.evolute.telemetrycollector.data
 
 /**
- * Samples SOC at each completed whole-kilometre odometer checkpoint.
- * Both range and consumption are based on the latest complete 10 km window.
+ * Uses one-kilometre SOC checkpoints over the latest 10 km of driving.
+ * A stationary SOC increase marks charging and resets the estimation window.
  */
 internal data class RangeMetrics(
     val estimatedRangeKm: Double,
@@ -13,17 +13,22 @@ internal object RangeEstimator {
     private const val STEP_KM = 1.0
     private const val WINDOW_KM = 10.0
     private const val EPSILON = 0.0001
+    private const val CHARGE_RISE_SOC = 0.2
 
-    fun estimate(history: List<TelemetrySnapshot>): Double? =
-        metrics(history)?.estimatedRangeKm
+    fun estimate(history: List<TelemetrySnapshot>): Double? = metrics(history)?.estimatedRangeKm
+    fun consumptionPer100Km(history: List<TelemetrySnapshot>): Double? = metrics(history)?.consumptionPercentPer100Km
 
-    fun consumptionPer100Km(history: List<TelemetrySnapshot>): Double? =
-        metrics(history)?.consumptionPercentPer100Km
+    private fun chronological(history: List<TelemetrySnapshot>): List<TelemetrySnapshot> {
+        val parsed = history.mapNotNull { item ->
+            try { java.time.Instant.parse(item.capturedAt).toEpochMilli() to item } catch (_: Exception) { null }
+        }
+        return if (parsed.size == history.size && parsed.isNotEmpty()) parsed.sortedBy { it.first }.map { it.second }
+        else history
+    }
 
     fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
         if (history.size < 2) return null
-
-        val ordered = history.sortedBy { it.odometer }
+        val ordered = chronological(history)
         val checkpoints = mutableListOf<Pair<Double, Double>>()
         var nextCheckpoint = kotlin.math.floor(ordered.first().odometer + EPSILON) + STEP_KM
 
@@ -31,6 +36,17 @@ internal object RangeEstimator {
             val previous = ordered[index - 1]
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
+
+            // Charging is identified only when SOC rises while odometer remains stationary.
+            // Drop all pre-charge checkpoints so a 10-km window cannot span a charge session.
+            if (kotlin.math.abs(distance) <= EPSILON &&
+                current.soc - previous.soc >= CHARGE_RISE_SOC) {
+                checkpoints.clear()
+                nextCheckpoint = kotlin.math.floor(current.odometer + EPSILON) + STEP_KM
+                continue
+            }
+
+            // Ignore stationary samples and odometer reversals; only driving creates checkpoints.
             if (distance <= EPSILON) continue
 
             while (nextCheckpoint <= current.odometer + EPSILON) {
@@ -47,15 +63,12 @@ internal object RangeEstimator {
         val start = checkpoints[checkpoints.size - 11]
         val end = checkpoints.last()
         if (end.first - start.first < WINDOW_KM - EPSILON) return null
-
         val consumedSoc = start.second - end.second
         if (consumedSoc <= EPSILON || !consumedSoc.isFinite()) return null
-
         val remainingSoc = end.second.coerceIn(0.0, 100.0)
         val consumptionPer100Km = consumedSoc / WINDOW_KM * 100.0
         val range = remainingSoc / (consumedSoc / WINDOW_KM)
         if (!range.isFinite() || range < 0.0 || !consumptionPer100Km.isFinite()) return null
-
         return RangeMetrics(range, consumptionPer100Km)
     }
 }
