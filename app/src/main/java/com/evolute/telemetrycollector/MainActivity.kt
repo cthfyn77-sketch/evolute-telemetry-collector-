@@ -449,7 +449,7 @@ class MainActivity : Activity() {
         if (!::bridgeInfo.isInitialized) return
         val ip = LocalTelemetryServer.localIpv4Address()
         val pin = LocalTelemetryServer.getOrCreatePairingCode(this)
-        bridgeInfo.text = "Адрес: http://$ip:${LocalTelemetryServer.PORT}/api/v1/telemetry\\nPIN: $pin\\nПередайте адрес и PIN в Evolute Telemetry Display. Сервер доступен, пока работает сборщик."
+        bridgeInfo.text = "Адрес: http://$ip:${LocalTelemetryServer.PORT}/api/v1/telemetry\nPIN: $pin\nПередайте адрес и PIN в Evolute Telemetry Display. Сервер доступен, пока работает сборщик."
     }
 
     private fun refreshStatus() {
