@@ -3,6 +3,32 @@ from __future__ import annotations
 import json
 from evaconnect.auth import TokenStore
 from evaconnect.client import EvoluteClient
+import re
+
+
+_SENSITIVE_KEY = re.compile(
+    r"(access.?token|refresh.?token|authorization|password|secret|imei|vin|phone|"
+    r"user.?id|car.?id|vehicle.?id|(^|_)id$)",
+    re.IGNORECASE,
+)
+
+
+def _redact_api_value(value):
+    """Keep telemetry fields, but never persist account/vehicle credentials or IDs."""
+    if isinstance(value, dict):
+        result = {}
+        for key, item in value.items():
+            if _SENSITIVE_KEY.search(str(key)):
+                result[str(key)] = "[REDACTED]"
+            else:
+                result[str(key)] = _redact_api_value(item)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_redact_api_value(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
 
 def fetch_telemetry(access_token: str, refresh_token: str) -> str:
     store = TokenStore(path=None)
@@ -26,8 +52,17 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
                 "online": bool(getattr(telemetry, "is_online", False)),
                 "ready": bool(getattr(telemetry, "is_car_state_ready", False)),
                 "updated_at": str(getattr(telemetry, "car_state_updated_at", "") or ""),
-                # Preserve all sensors returned by the API; never log their values.
-                "sensors_json": json.dumps(getattr(telemetry, "sensors_raw", None) or sensors, ensure_ascii=False, separators=(",", ":"), default=str),
+                # Preserve the complete decoded telemetry response, including
+                # top-level fields and every sensor. Redact account/vehicle identifiers.
+                "sensors_json": json.dumps(
+                    _redact_api_value(
+                        getattr(telemetry, "api_raw", None)
+                        or {"sensors": getattr(telemetry, "sensors_raw", None) or sensors}
+                    ),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    default=str,
+                ),
             }
     except Exception as exc:
         status = getattr(exc, "status_code", None)
