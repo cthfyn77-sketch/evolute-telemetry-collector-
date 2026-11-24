@@ -45,6 +45,23 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         writableDatabase.insertOrThrow("snapshots", null, v)
     }
 
+    /** Estimated range based on completed 5-km checkpoints, smoothed over the last 10 km. */
+    fun calculatedRangeKm(): Double? {
+        val history = readableDatabase.rawQuery(
+            "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC",
+            null
+        ).use { c ->
+            val rows = mutableListOf<TelemetrySnapshot>()
+            while (c.moveToNext()) rows.add(TelemetrySnapshot(
+                c.getString(0), c.getDouble(1), c.getDouble(2),
+                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1,
+                c.getInt(5) == 1, c.getString(6)
+            ))
+            rows
+        }
+        return RangeEstimator.estimate(history)
+    }
+
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM snapshots", null).use {
         it.moveToFirst(); it.getLong(0)
     }
