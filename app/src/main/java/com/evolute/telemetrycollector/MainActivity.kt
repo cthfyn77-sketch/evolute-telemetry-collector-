@@ -40,7 +40,7 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(root,ViewGroup.LayoutParams(-1,-2)) }); refreshStatus()
     }
     private fun btn(t:String,action:()->Unit)=Button(this).apply { text=t; setOnClickListener { action() } }
-    private fun runTask(block:suspend ()->String) { scope.launch { try { show(block()) } catch(e:Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") } } }
+    private fun runTask(block:suspend ()->String) { scope.launch { try { val result=withContext(Dispatchers.IO) { block() }; show(result) } catch(e:Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") } } }
     private fun show(s:String) { status.text=s }
     private fun refreshStatus() { try { status.text="Записей: ${SnapshotDb.get(this).count()}\n${SnapshotDb.get(this).latest()}\nАвторизация: ${if(store.get()!=null) "сохранена" else "не выполнена"}" } catch(e:Exception) { status.text="Ошибка чтения: ${e.message}" } }
     private fun requestNotificationPermission() { if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.POST_NOTIFICATIONS),55) }
