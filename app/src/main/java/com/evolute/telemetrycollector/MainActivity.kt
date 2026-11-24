@@ -19,7 +19,8 @@ import kotlinx.coroutines.*
 class MainActivity : Activity() {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main)
     private var statusJob: Job? = null
-    private lateinit var phone:EditText; private lateinit var country:EditText; private lateinit var code:EditText; private lateinit var status:TextView
+    private lateinit var phone:EditText; private lateinit var country:EditText; private lateinit var code:EditText
+    private lateinit var status:TextView; private lateinit var actionStatus:TextView
     private lateinit var store:KeystoreTokenStore
     private val csvRequest=72
     override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState); store=KeystoreTokenStore(this); buildUi() }
@@ -36,29 +37,25 @@ class MainActivity : Activity() {
         root.addView(btn("Остановить сбор") { startService(Intent(this,CollectorService::class.java).setAction("STOP")); show("Остановка отправлена") })
         root.addView(btn("Обновить статус / число записей") { refreshStatus() })
         root.addView(btn("Экспорт CSV") { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/csv").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"evolute-telemetry.csv"),csvRequest) })
-        label("Состояние"); status=TextView(this).apply { textSize=14f }; root.addView(status)
+        label("Состояние сбора (обновляется автоматически)"); status=TextView(this).apply { textSize=14f }; root.addView(status)
+        label("Результат последнего действия"); actionStatus=TextView(this).apply { textSize=14f }; root.addView(actionStatus)
         root.addView(TextView(this).apply { text="Только чтение API. Команды автомобилю не отправляются. Расчёта запаса хода нет."; textSize=12f; setPadding(0,18,0,0) })
         setContentView(ScrollView(this).apply { addView(root,ViewGroup.LayoutParams(-1,-2)) }); refreshStatus()
     }
     private fun btn(t:String,action:()->Unit)=Button(this).apply { text=t; setOnClickListener { action() } }
     private fun runTask(block:suspend ()->String) { scope.launch { try { val result=withContext(Dispatchers.IO) { block() }; show(result) } catch(e:Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") } } }
-    private fun show(s:String) { status.text=s }
+    private fun show(s:String) { actionStatus.text=s }
     private fun statusText(): String {
         val db=SnapshotDb.get(this)
         return "Записей: ${db.count()}\n${db.latest()}\nАвторизация: ${if(store.get()!=null) "сохранена" else "не выполнена"}"
     }
-    private fun refreshStatus() { runTask { statusText() } }
+    private fun refreshStatus() { scope.launch { try { status.text=withContext(Dispatchers.IO) { statusText() } } catch(e:Exception) { status.text="Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}" } } }
     override fun onResume() {
         super.onResume()
         statusJob?.cancel()
         statusJob=scope.launch {
             while(isActive) {
-                try {
-                    val current=withContext(Dispatchers.IO) { statusText() }
-                    show(current)
-                } catch(e:Exception) {
-                    show("Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}")
-                }
+                refreshStatus()
                 delay(3_000)
             }
         }
