@@ -107,6 +107,10 @@ class CollectorService : Service() {
         .build()
 
     private fun updateNotification(text: String) {
+        getSharedPreferences("collector_status", MODE_PRIVATE).edit()
+            .putString("last_status", text)
+            .putLong("updated_at", System.currentTimeMillis())
+            .apply()
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(text))
     }
 
