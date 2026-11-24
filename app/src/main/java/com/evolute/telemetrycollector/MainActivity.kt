@@ -33,6 +33,7 @@ class MainActivity : Activity() {
     private lateinit var socValue: TextView
     private lateinit var socBar: View
     private lateinit var rangeValue: TextView
+    private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
@@ -189,6 +190,15 @@ class MainActivity : Activity() {
         content.addView(rangeCard)
 
         addGap(content, 10)
+        val consumptionCard = card()
+        consumptionCard.addView(text("СРЕДНИЙ РАСХОД БАТАРЕИ", 10f, muted, true))
+        addGap(consumptionCard, 5)
+        consumptionValue = text("— % / 100 км", 27f, white, true)
+        consumptionCard.addView(consumptionValue)
+        consumptionCard.addView(text("По фактическому расходу SOC за последние 10 км", 9f, muted))
+        content.addView(consumptionCard)
+
+        addGap(content, 10)
         val odoCard = card()
         odoCard.addView(text("ОДОМЕТР", 10f, muted, true))
         odometerValue = text("— км", 22f, white, true)
@@ -295,6 +305,7 @@ class MainActivity : Activity() {
         if (latest == null) {
             socValue.text = "—%"
             rangeValue.text = "— км"
+            consumptionValue.text = "— % / 100 км"
             odometerValue.text = "— км"
             connectionValue.text = "Ожидание телеметрии"
         } else {
@@ -308,6 +319,8 @@ class MainActivity : Activity() {
             params.width = (width * (latest.soc.coerceIn(0.0, 100.0) / 100.0)).toInt()
             socBar.layoutParams = params
         }
+        val averageConsumption = db.averageConsumptionPer100Km()
+        consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
         val last = getSharedPreferences("collector_status", MODE_PRIVATE)
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
