@@ -13,6 +13,7 @@ class RangeEstimatorTest {
         val history = (0..10).map { km -> snapshot(100.0 - km * 0.4, km.toDouble()) }
         // 4% SOC used over 10 km; 96% remains => 240 km.
         assertEquals(240.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun interpolatesSocAtEveryWholeKilometer() {
