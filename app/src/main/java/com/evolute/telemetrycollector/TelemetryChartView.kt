@@ -143,13 +143,24 @@ class TelemetryChartView(context: Context) : View(context) {
         canvas.drawPath(timePath, socByTime)
 
         if (hasMileageMovement()) {
-            val distancePath = Path()
-            snapshots.forEachIndexed { index, item ->
-                val x = left + ((item.odometer - minOdo) / distanceSpan).toFloat() * (right - left)
-                val y = yFor(item.soc)
-                if (index == 0) distancePath.moveTo(x, y) else distancePath.lineTo(x, y)
+            // Preserve historical SOC colors by coloring each segment from its recorded levels.
+            for (index in 1 until snapshots.size) {
+                val previous = snapshots[index - 1]
+                val current = snapshots[index]
+                val x1 = left + ((previous.odometer - minOdo) / distanceSpan).toFloat() * (right - left)
+                val x2 = left + ((current.odometer - minOdo) / distanceSpan).toFloat() * (right - left)
+                val y1 = yFor(previous.soc)
+                val y2 = yFor(current.soc)
+                val segmentSoc = (previous.soc + current.soc) / 2.0
+                socByDistance.color = when {
+                    segmentSoc >= 80.0 -> android.graphics.Color.rgb(34, 197, 94)
+                    segmentSoc >= 60.0 -> android.graphics.Color.rgb(132, 204, 22)
+                    segmentSoc >= 40.0 -> android.graphics.Color.rgb(234, 179, 8)
+                    segmentSoc >= 20.0 -> android.graphics.Color.rgb(249, 115, 22)
+                    else -> android.graphics.Color.rgb(239, 68, 68)
+                }
+                canvas.drawLine(x1, y1, x2, y2, socByDistance)
             }
-            canvas.drawPath(distancePath, socByDistance)
         }
 
         axisText.color = android.graphics.Color.rgb(151, 172, 181)
