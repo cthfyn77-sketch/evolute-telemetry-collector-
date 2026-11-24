@@ -50,9 +50,9 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences("collector_status", MODE_PRIVATE)
         val last = prefs.getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
         val updated = prefs.getLong("updated_at", 0L)
-        val whenText = if (updated == 0L) "" else " (\u0024{java.time.Instant.ofEpochMilli(updated)})"
+        val whenText = if (updated == 0L) "" else " (${java.time.Instant.ofEpochMilli(updated)})"
         return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null) +
-            "\\nПоследний статус evaconnect: \\u0024last\\u0024whenText"
+            "\\nПоследний статус evaconnect: $last$whenText"
     }
     private suspend fun updateStatus() {
         try {
