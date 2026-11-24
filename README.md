@@ -1,3 +1,25 @@
 # Evolute Telemetry Collector
 
-Standalone, read-only Android telemetry collector based on the `evaconnect` API flow. Separate package, separate local database, 30-second sampling, CSV export. No vehicle commands and no range estimation.
+Отдельное Android-приложение для локального сбора телеметрии Evolute.
+
+## Возможности
+- Авторизация Evolute по телефону и SMS-коду.
+- API-обмен по read-only маршрутам аккаунта/автомобиля/телеметрии, используемым клиентским потоком evaconnect.
+- Сбор каждые 30 секунд в запущенной foreground-службе с постоянным уведомлением.
+- Локальная отдельная SQLite-база `evolute_collector.sqlite`.
+- Поля: время локального снимка, время обновления телеметрии API, SOC, одометр, штатный запас хода, online, ready.
+- Экспорт истории в CSV через системный выбор файла.
+- Токены шифруются AES-GCM ключом Android Keystore.
+
+## Ограничения безопасности
+- Package: `com.evolute.telemetrycollector` — не совпадает с приложением Range Monitor.
+- Никаких команд автомобилю, управления зарядкой или изменения настроек.
+- Нет алгоритма прогноза запаса хода и нет сегментов по 5 км.
+- Токены не включаются в исходный код, CSV или диагностические сообщения.
+- Данные остаются локально на устройстве; внешнего сервера проекта нет.
+
+## Сборка
+GitHub Actions workflow `.github/workflows/android.yml` собирает debug APK и публикует его как artifact `evolute-telemetry-collector-debug`.
+
+## Примечание о периодичности
+Интервал опроса приложения — 30 секунд при работающей foreground-службе. Android и прошивка телефона могут остановить службу из-за ограничений фоновой работы или энергосбережения; для длительного сбора следует разрешить приложению фоновую работу/неограниченное энергопотребление в настройках Android.
