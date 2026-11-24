@@ -36,7 +36,7 @@ class MainActivity : Activity() {
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
     private lateinit var chart: TelemetryChartView
-    private lateinit var historyRows: LinearLayout
+    private lateinit var chartCard: LinearLayout
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -131,20 +131,17 @@ class MainActivity : Activity() {
         content.addView(metrics)
 
         addGap(content, 12)
-        val history = card()
-        history.addView(row().apply {
-            addView(text("ИСТОРИЯ SOC", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
-            addView(text("ПОСЛЕДНИЕ ЗАПИСИ", 9f, muted, true))
+        chartCard = card()
+        chartCard.addView(text("ДИНАМИКА ЗАРЯДА", 12f, white, true))
+        addGap(chartCard, 10)
+        chartCard.addView(row().apply {
+            addView(text("●  SOC / ПРОБЕГ", 9f, accent, true), LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text("●  SOC / ВРЕМЯ", 9f, Color.rgb(96, 165, 250), true))
         })
-        addGap(history, 12)
-        chart = TelemetryChartView(this).apply { setValues(emptyList()) }
-        history.addView(chart, LinearLayout.LayoutParams(-1, dp(132)))
-        addGap(history, 8)
-        history.addView(text("График строится по сохранённым снимкам телеметрии", 10f, muted))
-        addGap(history, 10)
-        historyRows = column()
-        history.addView(historyRows)
-        content.addView(history)
+        addGap(chartCard, 8)
+        chart = TelemetryChartView(this)
+        chartCard.addView(chart, LinearLayout.LayoutParams(-1, dp(176)))
+        content.addView(chartCard)
 
         addGap(content, 12)
         val collection = card()
@@ -159,15 +156,6 @@ class MainActivity : Activity() {
         status = text("Ожидание первого опроса", 11f, muted)
         collection.addView(status)
         addGap(collection, 12)
-        collection.addView(actionButton("НАЧАТЬ СБОР", accent, bg) {
-            if (store.get() == null) show("Сначала выполните авторизацию")
-            else {
-                requestNotificationPermission()
-                ContextCompat.startForegroundService(this, Intent(this, CollectorService::class.java))
-                show("Сбор запущен · интервал 30 секунд")
-            }
-        })
-        addGap(collection, 8)
         collection.addView(actionButton("ОБНОВИТЬ СТАТУС", surface2, white) {
             refreshStatus()
         })
@@ -288,22 +276,12 @@ class MainActivity : Activity() {
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
-        val snapshots = db.recentSnapshots(24)
-        chart.setValues(snapshots.map { it.soc.toFloat() })
-        historyRows.removeAllViews()
-        snapshots.asReversed().take(6).forEach { item ->
-            val line = row().apply {
-                setPadding(0, dp(7), 0, dp(7))
-                addView(text(item.capturedAt.replace("T", " ").take(16), 10f, muted),
-                    LinearLayout.LayoutParams(0, -2, 1f))
-                addView(text("${item.soc.toInt()}%", 12f, accent, true))
-                addView(text("  ·  ${item.odometer.toInt()} км", 10f, white))
-            }
-            historyRows.addView(line)
-            val divider = View(this).apply { setBackgroundColor(Color.rgb(44, 58, 66)) }
-            historyRows.addView(divider, LinearLayout.LayoutParams(-1, dp(1)))
-        }
-        if (snapshots.isEmpty()) historyRows.addView(text("История появится после первых измерений", 10f, muted))
+        val snapshots = db.recentSnapshots(240)
+        val mileageValues = snapshots.map { it.odometer }
+        val hasMileageMovement = mileageValues.size >= 2 &&
+            (mileageValues.maxOrNull()!! - mileageValues.minOrNull()!!) > 0.001
+        chartCard.visibility = if (hasMileageMovement) View.VISIBLE else View.GONE
+        chart.setSnapshots(snapshots)
     }
 
     private fun refreshStatus() {
