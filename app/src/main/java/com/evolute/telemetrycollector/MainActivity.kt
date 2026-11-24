@@ -18,6 +18,7 @@ import kotlinx.coroutines.*
 
 class MainActivity : Activity() {
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main)
+    private var statusJob: Job? = null
     private lateinit var phone:EditText; private lateinit var country:EditText; private lateinit var code:EditText; private lateinit var status:TextView
     private lateinit var store:KeystoreTokenStore
     private val csvRequest=72
@@ -42,7 +43,31 @@ class MainActivity : Activity() {
     private fun btn(t:String,action:()->Unit)=Button(this).apply { text=t; setOnClickListener { action() } }
     private fun runTask(block:suspend ()->String) { scope.launch { try { val result=withContext(Dispatchers.IO) { block() }; show(result) } catch(e:Exception) { show("Ошибка: ${e.message ?: e.javaClass.simpleName}") } } }
     private fun show(s:String) { status.text=s }
-    private fun refreshStatus() { try { status.text="Записей: ${SnapshotDb.get(this).count()}\n${SnapshotDb.get(this).latest()}\nАвторизация: ${if(store.get()!=null) "сохранена" else "не выполнена"}" } catch(e:Exception) { status.text="Ошибка чтения: ${e.message}" } }
+    private fun statusText(): String {
+        val db=SnapshotDb.get(this)
+        return "Записей: ${db.count()}\n${db.latest()}\nАвторизация: ${if(store.get()!=null) "сохранена" else "не выполнена"}"
+    }
+    private fun refreshStatus() { runTask { statusText() } }
+    override fun onResume() {
+        super.onResume()
+        statusJob?.cancel()
+        statusJob=scope.launch {
+            while(isActive) {
+                try {
+                    val current=withContext(Dispatchers.IO) { statusText() }
+                    show(current)
+                } catch(e:Exception) {
+                    show("Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}")
+                }
+                delay(3_000)
+            }
+        }
+    }
+    override fun onPause() {
+        statusJob?.cancel()
+        statusJob=null
+        super.onPause()
+    }
     private fun requestNotificationPermission() { if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED) ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.POST_NOTIFICATIONS),55) }
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) { super.onActivityResult(requestCode,resultCode,data); if(requestCode==csvRequest && resultCode==RESULT_OK) { val uri=data?.data ?: return; scope.launch(Dispatchers.IO) { try { contentResolver.openOutputStream(uri)?.use { SnapshotDb.get(this@MainActivity).exportCsv(it) }; withContext(Dispatchers.Main) { show("CSV экспортирован") } } catch(e:Exception) { withContext(Dispatchers.Main) { show("Ошибка экспорта: ${e.message}") } } } } }
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
