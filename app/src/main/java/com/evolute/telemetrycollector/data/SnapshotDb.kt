@@ -11,10 +11,11 @@ data class TelemetrySnapshot(
     val odometer: Double,
     val stockRange: Double?,
     val online: Boolean,
-    val ready: Boolean
+    val ready: Boolean,
+    val sensorsJson: String
 )
 
-class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 1) {
+class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE snapshots(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,11 +25,14 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             odometer REAL NOT NULL,
             stock_range REAL,
             online INTEGER NOT NULL,
-            ready INTEGER NOT NULL
+            ready INTEGER NOT NULL,
+            sensors_json TEXT NOT NULL DEFAULT '{}'
         )""")
         db.execSQL("CREATE INDEX idx_snapshots_captured ON snapshots(captured_at)")
     }
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL("ALTER TABLE snapshots ADD COLUMN sensors_json TEXT NOT NULL DEFAULT '{}'")
+    }
 
     fun insert(t: ApiClient.Telemetry) {
         val v = ContentValues().apply {
@@ -36,6 +40,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             put("api_updated_at", t.updatedAt)
             put("soc", t.soc); put("odometer", t.odometer); put("stock_range", t.stockRange)
             put("online", if (t.online) 1 else 0); put("ready", if (t.ready) 1 else 0)
+            put("sensors_json", t.sensorsJson)
         }
         writableDatabase.insertOrThrow("snapshots", null, v)
     }
@@ -45,22 +50,22 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
     }
 
     fun latestSnapshot(): TelemetrySnapshot? = readableDatabase.rawQuery(
-        "SELECT captured_at,soc,odometer,stock_range,online,ready FROM snapshots ORDER BY id DESC LIMIT 1", null
+        "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT 1", null
     ).use { c ->
         if (!c.moveToFirst()) return null
         TelemetrySnapshot(c.getString(0), c.getDouble(1), c.getDouble(2),
-            if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1)
+            if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1, c.getString(6))
     }
 
     fun recentSnapshots(limit: Int = 24): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
-            "SELECT captured_at,soc,odometer,stock_range,online,ready FROM snapshots ORDER BY id DESC LIMIT ?",
+            "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT ?",
             arrayOf(limit.coerceIn(1, 200).toString())
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(TelemetrySnapshot(
                 c.getString(0), c.getDouble(1), c.getDouble(2),
-                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1
+                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1, c.getString(6)
             ))
             rows.reverse()
             rows
@@ -75,10 +80,10 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         out.writer(Charsets.UTF_8).use { w ->
             w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready\n")
             readableDatabase.rawQuery(
-                "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready FROM snapshots ORDER BY id", null
+                "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id", null
             ).use { c ->
                 while (c.moveToNext()) {
-                    val row = (0..6).joinToString(",") { i -> if (c.isNull(i)) "" else c.getString(i) }
+                    val row = (0..7).joinToString(",") { i -> if (c.isNull(i)) "" else c.getString(i) }
                     w.write(row + "\n")
                 }
             }
