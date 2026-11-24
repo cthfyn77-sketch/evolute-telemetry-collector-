@@ -47,15 +47,22 @@ class MainActivity : Activity() {
     private fun show(s:String) { actionStatus.text=s }
     private fun statusText(): String {
         val db=SnapshotDb.get(this)
-        return "Записей: ${db.count()}\n${db.latest()}\nАвторизация: ${if(store.get()!=null) "сохранена" else "не выполнена"}"
+        return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null)
     }
-    private fun refreshStatus() { scope.launch { try { status.text=withContext(Dispatchers.IO) { statusText() } } catch(e:Exception) { status.text="Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}" } } }
+    private suspend fun updateStatus() {
+        try {
+            status.text=withContext(Dispatchers.IO) { statusText() }
+        } catch(e:Exception) {
+            status.text="Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}"
+        }
+    }
+    private fun refreshStatus() { scope.launch { updateStatus() } }
     override fun onResume() {
         super.onResume()
         statusJob?.cancel()
         statusJob=scope.launch {
             while(isActive) {
-                refreshStatus()
+                updateStatus()
                 delay(3_000)
             }
         }
