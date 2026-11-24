@@ -335,25 +335,41 @@ class MainActivity : Activity() {
         else if (::authFeedback.isInitialized) authFeedback.text = value
     }
 
+    /** Battery level palette shared by the SOC indicator and chart. */
+    private fun socLevelColor(soc: Double): Int = when {
+        soc >= 80.0 -> Color.rgb(34, 197, 94)
+        soc >= 60.0 -> Color.rgb(132, 204, 22)
+        soc >= 40.0 -> Color.rgb(234, 179, 8)
+        soc >= 20.0 -> Color.rgb(249, 115, 22)
+        else -> Color.rgb(239, 68, 68)
+    }
+
     private fun updateDashboard() {
         val db = SnapshotDb.get(this)
         val latest = db.latestSnapshot()
         recordValue.text = "Записей в базе: ${db.count()}"
         if (latest == null) {
             socValue.text = "—%"
+            socValue.setTextColor(white)
+            socBar.background = rounded(Color.rgb(73, 88, 96), 8)
             rangeValue.text = "— км"
             consumptionValue.text = "— % / 100 км"
             odometerValue.text = "— км"
             connectionValue.text = "Ожидание телеметрии"
         } else {
+            val currentSoc = latest.soc.coerceIn(0.0, 100.0)
+            val socColor = socLevelColor(currentSoc)
             socValue.text = "${latest.soc.toInt()}%"
+            socValue.setTextColor(socColor)
+            socBar.background = rounded(socColor, 8)
             rangeValue.text = latest.stockRange?.let { "${it.toInt()} км" } ?: "— км"
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
             connectionValue.setTextColor(if (latest.online) accent else muted)
-            val width = (resources.displayMetrics.widthPixels - dp(68)).coerceAtLeast(dp(100))
+            val trackWidth = (socBar.parent as? View)?.width
+                ?: (resources.displayMetrics.widthPixels - dp(68)).coerceAtLeast(dp(100))
             val params = socBar.layoutParams
-            params.width = (width * (latest.soc.coerceIn(0.0, 100.0) / 100.0)).toInt()
+            params.width = (trackWidth * (currentSoc / 100.0)).toInt()
             socBar.layoutParams = params
         }
         val averageConsumption = db.averageConsumptionPer100Km()
