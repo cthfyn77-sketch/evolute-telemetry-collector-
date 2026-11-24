@@ -222,37 +222,7 @@ class ApiClient(private val tokens: TokenStore) {
     fun fetchTelemetry(): Telemetry {
         // Resolve the vehicle once per ApiClient; subsequent polls request telemetry only.
         val imei = resolveTelemetryImei()
-        val tel = request("/client-bff-service/telemetry/$imei")
-        val sensors = tel.optJSONObject("sensors")
-            ?: throw IOException("В ответе нет sensors")
-
-        fun num(key: String): Double? {
-            val raw = sensors.opt(key) ?: return null
-            if (raw == JSONObject.NULL || raw is Boolean) return null
-            val value = raw.toString().toDoubleOrNull() ?: return null
-            return value.takeIf { it.isFinite() && it >= 0.0 }
-        }
-
-        val soc = num("batteryPercentage")
-            ?.takeIf { it <= 100.0 }
-            ?: throw IOException("SOC недоступен или вне диапазона 0–100")
-
-        val odo = num("odometer")
-            ?: throw IOException("Одометр недоступен")
-
-        val updatedAt = tel.opt("carStateUpdatedAt")
-            ?.takeUnless { it == JSONObject.NULL }
-            ?.toString()
-            ?.takeIf { it.isNotBlank() && it != "null" }
-
-        return Telemetry(
-            soc,
-            odo,
-            num("remainsBatteryMileage"),
-            tel.optBoolean("isOnline"),
-            tel.optBoolean("isCarStateReady"),
-            updatedAt
-        )
+        return TelemetryParser.parse(request("/client-bff-service/telemetry/$imei"))
     }
 }
 

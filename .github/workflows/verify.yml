@@ -1,0 +1,30 @@
+name: JVM Verification (no APK)
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "app/src/**"
+      - "app/build.gradle.kts"
+      - ".github/workflows/verify.yml"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or ref to verify"
+        required: true
+        default: "test/telemetry-verification"
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.head_ref || github.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Run JVM unit tests (does not assemble APK)
+        run: gradle :app:testDebugUnitTest
