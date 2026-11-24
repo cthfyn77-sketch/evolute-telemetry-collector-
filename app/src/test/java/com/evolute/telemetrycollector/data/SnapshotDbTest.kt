@@ -1,0 +1,56 @@
+package com.evolute.telemetrycollector.data
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import org.junit.After
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import java.io.ByteArrayOutputStream
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
+class SnapshotDbTest {
+    private lateinit var context: Context
+    private lateinit var db: SnapshotDb
+
+    @Before fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        context.deleteDatabase("evolute_collector.sqlite")
+        db = SnapshotDb.get(context)
+    }
+
+    @After fun tearDown() {
+        db.close()
+        context.deleteDatabase("evolute_collector.sqlite")
+    }
+
+    @Test fun storesSnapshotAndReturnsLatestRecord() {
+        db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, "api-time"))
+
+        assertEquals(1L, db.count())
+        val latest = db.latest()
+        assertTrue(latest.contains("SOC: 64.0%"))
+        assertTrue(latest.contains("Одометр: 37165.0 км"))
+        assertTrue(latest.contains("Штатный запас: 280.0 км"))
+        assertTrue(latest.contains("Онлайн: true; готовность: false"))
+    }
+
+    @Test fun exportsStoredRowsAsCsv() {
+        db.insert(ApiClient.Telemetry(50.0, 1000.0, null, false, true, null))
+        val output = ByteArrayOutputStream()
+        db.exportCsv(output)
+        val csv = output.toString(Charsets.UTF_8.name())
+
+        assertTrue(csv.startsWith("captured_at,api_updated_at,soc,odometer,stock_range,online,ready"))
+        assertTrue(csv.contains(",50.0,1000.0,,0,1"))
+    }
+
+    @Test fun emptyDatabaseHasNoLatestRecord() {
+        assertEquals(0L, db.count())
+        assertEquals("Пока нет записей", db.latest())
+    }
+}
