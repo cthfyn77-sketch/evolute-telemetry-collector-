@@ -42,6 +42,8 @@ internal object RangeEstimator {
             if (kotlin.math.abs(distance) <= EPSILON &&
                 current.soc - previous.soc >= CHARGE_RISE_SOC) {
                 checkpoints.clear()
+                // The final SOC observed while parked becomes the new post-charge baseline.
+                checkpoints.add(current.odometer to current.soc)
                 nextCheckpoint = kotlin.math.floor(current.odometer + EPSILON) + STEP_KM
                 continue
             }
