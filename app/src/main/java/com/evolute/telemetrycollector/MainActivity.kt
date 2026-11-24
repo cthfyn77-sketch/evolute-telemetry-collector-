@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private lateinit var code: EditText
     private lateinit var status: TextView
     private lateinit var actionStatus: TextView
+    private lateinit var authFeedback: TextView
     private lateinit var socValue: TextView
     private lateinit var socBar: View
     private lateinit var rangeValue: TextView
@@ -50,8 +51,10 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = KeystoreTokenStore(this)
-        buildUi()
-        autoStartCollectorIfAuthorized()
+        if (store.get() == null) buildAuthUi() else {
+            buildUi()
+            autoStartCollectorIfAuthorized()
+        }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
@@ -77,6 +80,53 @@ class MainActivity : Activity() {
 
     private fun addGap(parent: LinearLayout, height: Int = 12) {
         parent.addView(View(this), LinearLayout.LayoutParams(1, dp(height)))
+    }
+
+    /** First-run sign-in screen. The dashboard is shown only after successful authentication. */
+    private fun buildAuthUi() {
+        val content = column().apply { setPadding(dp(22), dp(30), dp(22), dp(28)); gravity = Gravity.CENTER_HORIZONTAL }
+        addGap(content, 34)
+        content.addView(text("EV", 38f, accent, true).apply { gravity = Gravity.CENTER })
+        addGap(content, 6)
+        content.addView(text("EVOLUTE TELEMETRY", 20f, white, true).apply { gravity = Gravity.CENTER })
+        content.addView(text("COLLECTOR  /  PRO", 10f, muted, true).apply { gravity = Gravity.CENTER })
+        addGap(content, 30)
+        val auth = card()
+        auth.addView(text("АВТОРИЗАЦИЯ EVACONNECT", 14f, white, true))
+        addGap(auth, 8)
+        auth.addView(text("Войдите в аккаунт, чтобы открыть панель телеметрии и включить автоматический сбор.", 12f, muted))
+        addGap(auth, 16)
+        phone = edit("Телефон с кодом страны, без +", 3)
+        country = edit("Страна (две буквы)", 0).apply { setText("RU") }
+        code = edit("Код из SMS", 2)
+        auth.addView(phone); addGap(auth, 8)
+        auth.addView(country); addGap(auth, 8)
+        auth.addView(code); addGap(auth, 12)
+        auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
+            runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
+        })
+        addGap(auth, 8)
+        auth.addView(actionButton("ВОЙТИ И ОТКРЫТЬ ПРИЛОЖЕНИЕ", accent, bg) {
+            runTask {
+                ApiClient(store).signIn(phone.text.toString(), code.text.toString())
+                withContext(Dispatchers.Main) {
+                    buildUi()
+                    requestNotificationPermission()
+                    ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, CollectorService::class.java))
+                    show("Авторизация успешна · автоматический сбор запущен")
+                }
+                "Авторизация успешна"
+            }
+        })
+        addGap(auth, 12)
+        authFeedback = text("Ожидание авторизации", 11f, muted)
+        auth.addView(authFeedback)
+        addGap(auth, 12)
+        auth.addView(text("Токены сохраняются в защищённом Android Keystore. Команды автомобилю не отправляются.", 10f, muted))
+        content.addView(auth, LinearLayout.LayoutParams(-1, -2))
+        val scroll = ScrollView(this).apply { setBackgroundColor(bg); isFillViewport = true; addView(content, ViewGroup.LayoutParams(-1, -2)) }
+        window.statusBarColor = bg; window.navigationBarColor = bg; window.decorView.systemUiVisibility = 0
+        setContentView(scroll)
     }
 
     private fun buildUi() {
@@ -170,37 +220,6 @@ class MainActivity : Activity() {
         content.addView(collection)
 
         addGap(content, 12)
-        val auth = card()
-        auth.addView(text("АККАУНТ EVOLUTE", 12f, white, true))
-        addGap(auth, 8)
-        phone = edit("Телефон с кодом страны, без +", 3)
-        country = edit("Страна (две буквы)", 0).apply { setText("RU") }
-        code = edit("Код из SMS", 2)
-        auth.addView(phone); addGap(auth, 6)
-        auth.addView(country); addGap(auth, 6)
-        auth.addView(code); addGap(auth, 10)
-        auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
-            runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "Запрос SMS-кода отправлен" }
-        })
-        addGap(auth, 8)
-        auth.addView(actionButton("ВОЙТИ", accent, bg) {
-            runTask {
-                ApiClient(store).signIn(phone.text.toString(), code.text.toString())
-                withContext(Dispatchers.Main) {
-                    requestNotificationPermission()
-                    ContextCompat.startForegroundService(
-                        this@MainActivity,
-                        Intent(this@MainActivity, CollectorService::class.java)
-                    )
-                }
-                "Авторизация сохранена · автоматический сбор запущен"
-            }
-        })
-        addGap(auth, 10)
-        auth.addView(text("Токены хранятся в Android Keystore. Команды автомобилю не отправляются.", 10f, muted))
-        content.addView(auth)
-
-        addGap(content, 12)
         val result = card()
         result.addView(text("ПОСЛЕДНЕЕ ДЕЙСТВИЕ", 10f, muted, true))
         actionStatus = text("Готово к работе", 12f, white)
@@ -249,7 +268,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun show(value: String) { actionStatus.text = value }
+    private fun show(value: String) {
+        if (::actionStatus.isInitialized) actionStatus.text = value
+        else if (::authFeedback.isInitialized) authFeedback.text = value
+    }
 
     private fun updateDashboard() {
         val db = SnapshotDb.get(this)
