@@ -42,6 +42,7 @@ class MainActivity : Activity() {
     private lateinit var apiFieldsValue: TextView
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
+    private lateinit var bridgeInfo: TextView
     private lateinit var chart: TelemetryChartView
     private lateinit var chartCard: LinearLayout
     private lateinit var store: KeystoreTokenStore
@@ -296,6 +297,19 @@ class MainActivity : Activity() {
         content.addView(collection)
 
         addGap(content, 12)
+        val bridgeCard = card()
+        bridgeCard.addView(text("ПОДКЛЮЧЕНИЕ ГОЛОВНОГО УСТРОЙСТВА", 11f, white, true))
+        addGap(bridgeCard, 6)
+        bridgeInfo = text("Локальный мост запускается вместе со сбором телеметрии", 11f, muted)
+        bridgeInfo.setLineSpacing(dp(3).toFloat(), 1f)
+        bridgeCard.addView(bridgeInfo)
+        addGap(bridgeCard, 8)
+        bridgeCard.addView(actionButton("ОБНОВИТЬ АДРЕС И PIN", surface2, accent) {
+            updateBridgeInfo()
+        })
+        content.addView(bridgeCard)
+
+        addGap(content, 12)
         val result = card()
         result.addView(text("ПОСЛЕДНЕЕ ДЕЙСТВИЕ", 10f, muted, true))
         actionStatus = text("Готово к работе", 12f, white)
@@ -431,10 +445,20 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun updateBridgeInfo() {
+        if (!::bridgeInfo.isInitialized) return
+        val ip = LocalTelemetryServer.localIpv4Address()
+        val pin = LocalTelemetryServer.getOrCreatePairingCode(this)
+        bridgeInfo.text = "Адрес: http://$ip:${LocalTelemetryServer.PORT}/api/v1/telemetry\\nPIN: $pin\\nПередайте адрес и PIN в Evolute Telemetry Display. Сервер доступен, пока работает сборщик."
+    }
+
     private fun refreshStatus() {
         scope.launch {
-            try { withContext(Dispatchers.IO) { SnapshotDb.get(this@MainActivity).count() }; updateDashboard() }
-            catch (e: Exception) { status.text = "Ошибка чтения базы: ${e.message}" }
+            try {
+                withContext(Dispatchers.IO) { SnapshotDb.get(this@MainActivity).count() }
+                updateDashboard()
+                updateBridgeInfo()
+            } catch (e: Exception) { status.text = "Ошибка чтения базы: ${e.message}" }
         }
     }
 
