@@ -17,8 +17,6 @@ import android.widget.TextView
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -37,7 +35,6 @@ class MainActivity : Activity() {
     private lateinit var estimatedRange: TextView
     private lateinit var consumption: TextView
     private lateinit var odometer: TextView
-    private lateinit var endpointButton: Button
     private var endpoint = ""
     private var pairingCode = ""
 
@@ -93,20 +90,19 @@ class MainActivity : Activity() {
         header.addView(label("EVOLUTE", 19f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
         status = label("НЕТ СВЯЗИ", 12f, muted, true)
         header.addView(status)
-        endpointButton = Button(this).apply {
+        header.addView(Button(this).apply {
             text = "НАСТРОЙКА"
             setOnClickListener { showConnectionDialog() }
-        }
-        header.addView(endpointButton)
+        })
         root.addView(header)
 
         val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         soc = label("—%", 64f, white, true)
         stockRange = label("— км", 34f, white, true)
         estimatedRange = label("— км", 34f, white, true)
-        top.addView(card("Заряд батареи", soc), LinearLayout.LayoutParams(0, 0, 1.05f).apply { height = 0; weight = 1.05f })
-        top.addView(card("Штатный запас", stockRange), LinearLayout.LayoutParams(0, 0, 1f).apply { height = 0; weight = 1f })
-        top.addView(card("Расчётный запас", estimatedRange), LinearLayout.LayoutParams(0, 0, 1f).apply { height = 0; weight = 1f })
+        top.addView(card("Заряд батареи", soc), LinearLayout.LayoutParams(0, -1, 1.05f).apply { rightMargin = 10 })
+        top.addView(card("Штатный запас", stockRange), LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 })
+        top.addView(card("Расчётный запас", estimatedRange), LinearLayout.LayoutParams(0, -1, 1f))
         root.addView(top, LinearLayout.LayoutParams(-1, 0, 3f).apply { bottomMargin = 10 })
 
         val bottom = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
