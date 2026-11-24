@@ -1,0 +1,30 @@
+name: Evolute Telemetry Display APK
+on:
+  push:
+    branches: [ 'feature/headunit-telemetry-display' ]
+    paths:
+      - 'headunit-display/**'
+      - '.github/workflows/headunit-display.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build display APK
+        run: gradle -p headunit-display assembleDebug
+      - name: Upload display APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: evolute-telemetry-display-debug
+          path: headunit-display/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
