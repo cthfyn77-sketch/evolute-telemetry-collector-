@@ -47,7 +47,12 @@ class MainActivity : Activity() {
     private fun show(s:String) { actionStatus.text=s }
     private fun statusText(): String {
         val db=SnapshotDb.get(this)
-        return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null)
+        val prefs = getSharedPreferences("collector_status", MODE_PRIVATE)
+        val last = prefs.getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
+        val updated = prefs.getLong("updated_at", 0L)
+        val whenText = if (updated == 0L) "" else " (\u0024{java.time.Instant.ofEpochMilli(updated)})"
+        return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null) +
+            "\\nПоследний статус evaconnect: \\u0024last\\u0024whenText"
     }
     private suspend fun updateStatus() {
         try {
