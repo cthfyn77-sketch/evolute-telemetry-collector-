@@ -20,6 +20,8 @@ import com.evolute.telemetrycollector.data.ApiClient
 import com.evolute.telemetrycollector.data.KeystoreTokenStore
 import com.evolute.telemetrycollector.data.SnapshotDb
 import kotlinx.coroutines.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -37,6 +39,7 @@ class MainActivity : Activity() {
     private lateinit var calculatedRangeHint: TextView
     private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
+    private lateinit var apiFieldsValue: TextView
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
     private lateinit var chart: TelemetryChartView
@@ -242,6 +245,17 @@ class MainActivity : Activity() {
         odoCard.addView(odometerValue)
         content.addView(odoCard)
 
+        addGap(content, 10)
+        val apiFieldsCard = card()
+        apiFieldsCard.addView(text("ДОСТУПНЫЕ ПОЛЯ API", 11f, white, true))
+        addGap(apiFieldsCard, 5)
+        apiFieldsCard.addView(text("Полный ответ evaconnect · идентификаторы и токены скрыты", 9f, muted))
+        addGap(apiFieldsCard, 8)
+        apiFieldsValue = text("Ожидание первой телеметрии", 10f, white)
+        apiFieldsValue.setLineSpacing(dp(2).toFloat(), 1f)
+        apiFieldsCard.addView(apiFieldsValue)
+        content.addView(apiFieldsCard)
+
         addGap(content, 12)
         chartCard = card()
         chartCard.addView(text("ДИНАМИКА ЗАРЯДА", 12f, white, true))
@@ -372,6 +386,7 @@ class MainActivity : Activity() {
             params.width = (trackWidth * (currentSoc / 100.0)).toInt()
             socBar.layoutParams = params
         }
+        apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
         val averageConsumption = db.averageConsumptionPer100Km()
         consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
@@ -384,6 +399,36 @@ class MainActivity : Activity() {
         val hasChartHistory = snapshots.size >= 2
         chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
         chart.setSnapshots(snapshots)
+    }
+
+    private fun formatApiFields(raw: String): String {
+        return try {
+            val root = JSONObject(raw)
+            val lines = mutableListOf<String>()
+            fun walk(value: Any?, path: String) {
+                if (lines.size >= 80) return
+                when (value) {
+                    is JSONObject -> {
+                        val keys = value.keys()
+                        while (keys.hasNext() && lines.size < 80) {
+                            val key = keys.next()
+                            walk(value.opt(key), if (path.isEmpty()) key else path + "." + key)
+                        }
+                    }
+                    is JSONArray -> {
+                        lines.add(path + ": [" + value.length() + " элементов]")
+                        for (i in 0 until minOf(value.length(), 10)) walk(value.opt(i), path + "[" + i + "]")
+                    }
+                    JSONObject.NULL -> lines.add(path + ": null")
+                    else -> lines.add(path + ": " + value.toString().take(180))
+                }
+            }
+            walk(root, "")
+            if (lines.isEmpty()) "API не вернул дополнительных полей"
+            else lines.joinToString("\n") + if (lines.size >= 80) "\n… список ограничен первыми 80 полями" else ""
+        } catch (_: Exception) {
+            "Не удалось разобрать JSON телеметрии"
+        }
     }
 
     private fun refreshStatus() {
