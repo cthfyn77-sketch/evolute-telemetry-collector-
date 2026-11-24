@@ -3,8 +3,13 @@ package com.evolute.telemetrycollector.data
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.IOException
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class TelemetryParserTest {
     @Test fun parsesValidTelemetry() {
         val result = TelemetryParser.parse(JSONObject("""{
