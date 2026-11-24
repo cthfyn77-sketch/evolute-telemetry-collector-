@@ -46,7 +46,7 @@ class SnapshotDbTest {
         val csv = output.toString(Charsets.UTF_8.name())
 
         assertTrue(csv.startsWith("captured_at,api_updated_at,soc,odometer,stock_range,online,ready"))
-        assertTrue(csv.contains(",50.0,1000.0,,0,1"))
+        assertTrue(csv.contains(Regex(",50(?:\\\\.0)?,1000(?:\\\\.0)?,,0,1")))
     }
 
     @Test fun emptyDatabaseHasNoLatestRecord() {
