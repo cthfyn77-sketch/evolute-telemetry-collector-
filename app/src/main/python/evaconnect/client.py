@@ -294,7 +294,12 @@ class EvoluteClient:
         if cached and (now - cached[0]) < self.min_telemetry_interval:
             return cached[1]
         response = self._request("GET", f"/client-bff-service/telemetry/{telemetry_id}")
-        telemetry = Telemetry.model_validate(self._json(response) or {})
+        raw_data = self._json(response) or {}
+        telemetry = Telemetry.model_validate(raw_data)
+        # Keep the complete decoded API object for the Android collector.
+        # The bridge applies a recursive identifier/credential redaction before
+        # it is persisted locally or included in CSV exports.
+        telemetry.api_raw = raw_data
         self._telemetry_cache[telemetry_id] = (time.monotonic(), telemetry)
         return telemetry
 
