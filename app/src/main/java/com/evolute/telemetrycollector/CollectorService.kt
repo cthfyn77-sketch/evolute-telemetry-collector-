@@ -69,7 +69,8 @@ class CollectorService : Service() {
                             stockRange = if (result.isNull("stock_range")) null else result.getDouble("stock_range"),
                             online = result.optBoolean("online", false),
                             ready = result.optBoolean("ready", false),
-                            updatedAt = result.optString("updated_at").takeIf { it.isNotBlank() }
+                            updatedAt = result.optString("updated_at").takeIf { it.isNotBlank() },
+                            sensorsJson = result.optString("sensors_json", "{}")
                         )
                         SnapshotDb.get(this@CollectorService).insert(telemetry)
                         updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
