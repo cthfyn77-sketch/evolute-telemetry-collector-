@@ -1,13 +1,13 @@
 package com.evolute.telemetrycollector.data
 
 import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.ByteArrayOutputStream
 
@@ -18,7 +18,7 @@ class SnapshotDbTest {
     private lateinit var db: SnapshotDb
 
     @Before fun setUp() {
-        context = ApplicationProvider.getApplicationContext()
+        context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("evolute_collector.sqlite")
         db = SnapshotDb.get(context)
     }
