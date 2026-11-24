@@ -2,67 +2,138 @@ package com.evolute.telemetrycollector
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Shader
 import android.view.View
+import com.evolute.telemetrycollector.data.TelemetrySnapshot
 import kotlin.math.max
-import kotlin.math.min
 
-/** Lightweight native SOC history chart; values are read-only local snapshots. */
+/**
+ * Two read-only SOC series on one chart:
+ * green = SOC by odometer, blue = SOC by elapsed time.
+ * The 15% reserve threshold is always visible.
+ */
 class TelemetryChartView(context: Context) : View(context) {
-    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.rgb(91, 218, 193)
-        strokeWidth = dp(2f); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND
+    private val socByDistance = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.rgb(34, 197, 94)
+        strokeWidth = dp(2f)
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
     }
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.argb(34, 91, 218, 193)
-        style = Paint.Style.FILL
+    private val socByTime = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.rgb(96, 165, 250)
+        strokeWidth = dp(2f)
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val threshold = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.rgb(239, 68, 68)
+        strokeWidth = dp(1.5f)
+        style = Paint.Style.STROKE
+        pathEffect = DashPathEffect(floatArrayOf(dp(5f), dp(4f)), 0f)
     }
     private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = android.graphics.Color.rgb(54, 70, 78)
         strokeWidth = dp(1f)
+        pathEffect = DashPathEffect(floatArrayOf(dp(2f), dp(4f)), 0f)
     }
-    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.rgb(91, 218, 193)
-        style = Paint.Style.FILL
+    private val scale = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = dp(8f) // approximately 2 mm on a standard-density display
+        strokeCap = Paint.Cap.ROUND
     }
-    private var values: List<Float> = emptyList()
+    private val axisText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.rgb(151, 172, 181)
+        textSize = dp(9f)
+        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+    }
+    private var snapshots: List<TelemetrySnapshot> = emptyList()
+
     private fun dp(v: Float) = v * resources.displayMetrics.density
 
-    fun setValues(next: List<Float>) {
-        values = next.takeLast(24)
+    fun setSnapshots(next: List<TelemetrySnapshot>) {
+        snapshots = next.takeLast(240)
         invalidate()
     }
 
+    private fun hasMileageMovement(): Boolean {
+        if (snapshots.size < 2) return false
+        val values = snapshots.map { it.odometer }
+        return (values.maxOrNull()!! - values.minOrNull()!!) > 0.001
+    }
+
+    private fun timestamp(snapshot: TelemetrySnapshot, fallback: Int): Long =
+        try { java.time.Instant.parse(snapshot.capturedAt).toEpochMilli() } catch (_: Exception) { fallback.toLong() }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val left = dp(5f); val right = width - dp(5f)
-        val top = dp(8f); val bottom = height - dp(10f)
-        for (i in 0..3) {
-            val y = top + (bottom - top) * i / 3f
+        if (!hasMileageMovement()) return
+
+        val left = dp(13f)
+        val right = width - dp(7f)
+        val top = dp(8f)
+        val bottom = height - dp(25f)
+        if (right <= left || bottom <= top) return
+
+        // A slim vertical color scale, without numbers or tick labels.
+        scale.shader = LinearGradient(
+            0f, bottom, 0f, top,
+            intArrayOf(
+                android.graphics.Color.rgb(239, 68, 68),
+                android.graphics.Color.rgb(249, 115, 22),
+                android.graphics.Color.rgb(234, 179, 8),
+                android.graphics.Color.rgb(34, 197, 94)
+            ),
+            floatArrayOf(0f, 0.35f, 0.68f, 1f),
+            Shader.TileMode.CLAMP
+        )
+        canvas.drawLine(left - dp(7f), top, left - dp(7f), bottom, scale)
+
+        // Faint guides only; the colored vertical line is the SOC scale.
+        for (level in listOf(0f, 25f, 50f, 75f, 100f)) {
+            val y = bottom - (level / 100f) * (bottom - top)
             canvas.drawLine(left, y, right, y, grid)
         }
-        if (values.isEmpty()) return
-        val low = max(0f, (values.minOrNull() ?: 0f) - 3f)
-        val high = min(100f, (values.maxOrNull() ?: 100f) + 3f).let { if (it - low < 8f) min(100f, low + 8f) else it }
-        val range = max(1f, high - low)
-        val points = values.mapIndexed { index, value ->
-            val x = if (values.size == 1) (left + right) / 2f else left + (right - left) * index / (values.size - 1)
-            val y = bottom - ((value.coerceIn(low, high) - low) / range) * (bottom - top)
-            x to y
+
+        // Fixed 15% low-charge threshold.
+        val thresholdY = bottom - 0.15f * (bottom - top)
+        canvas.drawLine(left, thresholdY, right, thresholdY, threshold)
+
+        val minOdo = snapshots.minOf { it.odometer }
+        val maxOdo = snapshots.maxOf { it.odometer }
+        val firstTime = timestamp(snapshots.first(), 0)
+        val lastTime = timestamp(snapshots.last(), snapshots.size - 1)
+        val timeSpan = max(1L, lastTime - firstTime)
+        val distanceSpan = max(0.001, maxOdo - minOdo)
+
+        fun yFor(soc: Double): Float =
+            bottom - (soc.coerceIn(0.0, 100.0) / 100.0).toFloat() * (bottom - top)
+
+        val distancePath = Path()
+        val timePath = Path()
+        snapshots.forEachIndexed { index, item ->
+            val distanceX = left + ((item.odometer - minOdo) / distanceSpan).toFloat() * (right - left)
+            val elapsed = timestamp(item, index) - firstTime
+            val timeX = left + (elapsed.toDouble() / timeSpan).toFloat() * (right - left)
+            val y = yFor(item.soc)
+            if (index == 0) {
+                distancePath.moveTo(distanceX, y)
+                timePath.moveTo(timeX, y)
+            } else {
+                distancePath.lineTo(distanceX, y)
+                timePath.lineTo(timeX, y)
+            }
         }
-        val path = Path().apply {
-            moveTo(points.first().first, points.first().second)
-            points.drop(1).forEach { lineTo(it.first, it.second) }
-        }
-        val area = Path(path).apply {
-            lineTo(points.last().first, bottom)
-            lineTo(points.first().first, bottom)
-            close()
-        }
-        canvas.drawPath(area, fill)
-        canvas.drawPath(path, line)
-        val last = points.last()
-        canvas.drawCircle(last.first, last.second, dp(4f), dot)
+        canvas.drawPath(distancePath, socByDistance)
+        canvas.drawPath(timePath, socByTime)
+
+        axisText.textAlign = Paint.Align.LEFT
+        canvas.drawText("ПРОБЕГ, КМ", left, height - dp(6f), axisText)
+        axisText.textAlign = Paint.Align.RIGHT
+        canvas.drawText("ВРЕМЯ", right, height - dp(6f), axisText)
     }
 }
