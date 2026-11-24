@@ -25,7 +25,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         val root=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(28,28,28,28) }
         fun label(s:String) { root.addView(TextView(this).apply { text=s; textSize=16f; setPadding(0,12,0,4) }) }
-        phone=EditText(this).apply { hint="Телефон"; inputType=3 }; country=EditText(this).apply { hint="Код страны, например +7"; setText("+7") }
+        phone=EditText(this).apply { hint="Телефон с кодом страны, без +"; inputType=3 }; country=EditText(this).apply { hint="Страна (две буквы), например RU"; setText("RU") }
         code=EditText(this).apply { hint="Код из SMS"; inputType=2 }
         root.addView(TextView(this).apply { text="Evolute Telemetry Collector"; textSize=23f })
         label("Авторизация Evolute"); root.addView(phone); root.addView(country); root.addView(code)
