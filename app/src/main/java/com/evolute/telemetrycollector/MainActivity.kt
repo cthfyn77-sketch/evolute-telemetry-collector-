@@ -33,6 +33,8 @@ class MainActivity : Activity() {
     private lateinit var socValue: TextView
     private lateinit var socBar: View
     private lateinit var rangeValue: TextView
+    private lateinit var calculatedRangeValue: TextView
+    private lateinit var calculatedRangeHint: TextView
     private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
     private lateinit var recordValue: TextView
