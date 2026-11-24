@@ -46,6 +46,25 @@ class RangeEstimatorTest {
         assertEquals(390.0, RangeEstimator.estimate(history)!!, 0.001)
     }
 
+    @Test fun chargingSessionResetsTenKilometerConsumptionWindow() {
+        val beforeCharge = (0..10).map { km ->
+            TelemetrySnapshot("2026-11-24T08:${(km * 2).toString().padStart(2, '0')}:00Z",
+                80.0 - km * 0.5, km.toDouble(), null, true, true, "{}")
+        }
+        val charge = listOf(
+            TelemetrySnapshot("2026-11-24T09:00:00Z", 80.0, 10.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-24T09:30:00Z", 90.0, 10.0, null, true, true, "{}")
+        )
+        val afterCharge = (1..10).map { km ->
+            TelemetrySnapshot("2026-11-24T10:${(km * 2).toString().padStart(2, '0')}:00Z",
+                90.0 - km * 0.4, 10.0 + km, null, true, true, "{}")
+        }
+        val combined = beforeCharge + charge + afterCharge
+        // The estimator must use only the 10 km after charging: 4% consumed, 86% remains.
+        assertEquals(215.0, RangeEstimator.estimate(combined)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(combined)!!, 0.001)
+    }
+
     @Test fun estimateUpdatesAtEachNewKilometerCheckpoint() {
         val first = (0..10).map { km -> snapshot(100.0 - km * 0.5, km.toDouble()) }
         val next = first + snapshot(94.0, 11.0)
