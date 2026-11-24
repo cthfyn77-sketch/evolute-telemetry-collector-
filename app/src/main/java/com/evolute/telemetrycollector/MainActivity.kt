@@ -52,7 +52,7 @@ class MainActivity : Activity() {
         val updated = prefs.getLong("updated_at", 0L)
         val whenText = if (updated == 0L) "" else " (${java.time.Instant.ofEpochMilli(updated)})"
         return CollectorStatusFormatter.format(db.count(), db.latest(), store.get()!=null) +
-            "\\nПоследний статус evaconnect: $last$whenText"
+            "\nПоследний статус evaconnect: $last$whenText"
     }
     private suspend fun updateStatus() {
         try {
