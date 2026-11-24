@@ -2,18 +2,25 @@ package com.evolute.telemetrycollector.data
 
 /**
  * Samples SOC at each completed whole-kilometre odometer checkpoint.
- * The range estimate uses the SOC consumed over the latest complete 10 km
- * (11 consecutive 1-km checkpoints) and the SOC at the latest checkpoint.
- *
- * Telemetry is polled more frequently, so SOC at a kilometre boundary is
- * linearly interpolated between the two surrounding telemetry samples.
+ * Both range and consumption are based on the latest complete 10 km window.
  */
+internal data class RangeMetrics(
+    val estimatedRangeKm: Double,
+    val consumptionPercentPer100Km: Double
+)
+
 internal object RangeEstimator {
     private const val STEP_KM = 1.0
     private const val WINDOW_KM = 10.0
     private const val EPSILON = 0.0001
 
-    fun estimate(history: List<TelemetrySnapshot>): Double? {
+    fun estimate(history: List<TelemetrySnapshot>): Double? =
+        metrics(history)?.estimatedRangeKm
+
+    fun consumptionPer100Km(history: List<TelemetrySnapshot>): Double? =
+        metrics(history)?.consumptionPercentPer100Km
+
+    fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
         if (history.size < 2) return null
 
         val ordered = history.sortedBy { it.odometer }
@@ -36,7 +43,6 @@ internal object RangeEstimator {
             }
         }
 
-        // 11 checkpoints are needed to measure a complete 10-km window.
         if (checkpoints.size < 11) return null
         val start = checkpoints[checkpoints.size - 11]
         val end = checkpoints.last()
@@ -45,8 +51,11 @@ internal object RangeEstimator {
         val consumedSoc = start.second - end.second
         if (consumedSoc <= EPSILON || !consumedSoc.isFinite()) return null
 
-        val socPerKm = consumedSoc / WINDOW_KM
         val remainingSoc = end.second.coerceIn(0.0, 100.0)
-        return (remainingSoc / socPerKm).takeIf { it.isFinite() && it >= 0.0 }
+        val consumptionPer100Km = consumedSoc / WINDOW_KM * 100.0
+        val range = remainingSoc / (consumedSoc / WINDOW_KM)
+        if (!range.isFinite() || range < 0.0 || !consumptionPer100Km.isFinite()) return null
+
+        return RangeMetrics(range, consumptionPer100Km)
     }
 }
