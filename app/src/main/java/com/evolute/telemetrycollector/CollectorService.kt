@@ -19,12 +19,15 @@ import java.io.IOException
 class CollectorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
+    private var localServer: LocalTelemetryServer? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIFICATION_ID, notification())
+        // Local bridge serves only a small allow-listed JSON payload protected by PIN.
+        localServer = LocalTelemetryServer(applicationContext).also { it.start() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -116,6 +119,8 @@ class CollectorService : Service() {
     }
 
     override fun onDestroy() {
+        localServer?.stop()
+        localServer = null
         scope.cancel()
         super.onDestroy()
     }
