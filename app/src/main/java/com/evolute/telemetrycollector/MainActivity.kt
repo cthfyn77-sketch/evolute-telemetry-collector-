@@ -365,9 +365,8 @@ class MainActivity : Activity() {
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
         val snapshots = db.recentSnapshots(240)
         val mileageValues = snapshots.map { it.odometer }
-        val hasMileageMovement = mileageValues.size >= 2 &&
-            (mileageValues.maxOrNull()!! - mileageValues.minOrNull()!!) > 0.001
-        chartCard.visibility = if (hasMileageMovement) View.VISIBLE else View.GONE
+        val hasChartHistory = snapshots.size >= 2
+        chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
         chart.setSnapshots(snapshots)
     }
 
