@@ -1,13 +1,15 @@
 package com.evolute.telemetrycollector.data
 
 /**
- * Builds SOC checkpoints every 5 km and estimates range from the average SOC
- * consumption over the latest complete 10 km (two 5-km intervals).
+ * Samples SOC at each completed whole-kilometre odometer checkpoint.
+ * The range estimate uses the SOC consumed over the latest complete 10 km
+ * (11 consecutive 1-km checkpoints) and the SOC at the latest checkpoint.
  *
- * The estimate changes only when a new 5-km checkpoint is completed.
+ * Telemetry is polled more frequently, so SOC at a kilometre boundary is
+ * linearly interpolated between the two surrounding telemetry samples.
  */
 internal object RangeEstimator {
-    private const val STEP_KM = 5.0
+    private const val STEP_KM = 1.0
     private const val WINDOW_KM = 10.0
     private const val EPSILON = 0.0001
 
@@ -16,8 +18,7 @@ internal object RangeEstimator {
 
         val ordered = history.sortedBy { it.odometer }
         val checkpoints = mutableListOf<Pair<Double, Double>>()
-        var nextCheckpoint = kotlin.math.floor(ordered.first().odometer / STEP_KM + EPSILON) *
-            STEP_KM + STEP_KM
+        var nextCheckpoint = kotlin.math.floor(ordered.first().odometer + EPSILON) + STEP_KM
 
         for (index in 1 until ordered.size) {
             val previous = ordered[index - 1]
@@ -35,9 +36,10 @@ internal object RangeEstimator {
             }
         }
 
-        if (checkpoints.size < 3) return null
+        // 11 checkpoints are needed to measure a complete 10-km window.
+        if (checkpoints.size < 11) return null
+        val start = checkpoints[checkpoints.size - 11]
         val end = checkpoints.last()
-        val start = checkpoints[checkpoints.size - 3]
         if (end.first - start.first < WINDOW_KM - EPSILON) return null
 
         val consumedSoc = start.second - end.second
