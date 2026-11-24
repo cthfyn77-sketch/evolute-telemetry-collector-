@@ -78,7 +78,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     fun exportCsv(out: java.io.OutputStream) {
         out.writer(Charsets.UTF_8).use { w ->
-            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready\n")
+            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json\n")
             readableDatabase.rawQuery(
                 "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id", null
             ).use { c ->
