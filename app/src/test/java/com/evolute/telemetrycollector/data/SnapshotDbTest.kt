@@ -24,7 +24,7 @@ class SnapshotDbTest {
     }
 
     @After fun tearDown() {
-        db.close()
+        SnapshotDb.resetForTests()
         context.deleteDatabase("evolute_collector.sqlite")
     }
 
