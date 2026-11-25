@@ -13,7 +13,30 @@ class ApiClient(private val tokens: TokenStore) {
     @Volatile
     private var cachedTelemetryImei: String? = null
 
-    data class Telemetry(val soc: Double, val odometer: Double, val stockRange: Double?, val online: Boolean, val ready: Boolean, val updatedAt: String?)
+    data class Telemetry(
+        val soc: Double,
+        val odometer: Double,
+        val stockRange: Double?,
+        val online: Boolean,
+        val ready: Boolean,
+        val updatedAt: String?,
+        val batteryTemp: Double? = null,
+        val voltage12v: Double? = null,
+        val coolantTemp: Double? = null,
+        val outsideTemp: Double? = null,
+        val cabinTemp: Double? = null,
+        val climateTargetTemp: Double? = null,
+        val climateFanSpeed: Double? = null,
+        val chargingGunInserted: Boolean? = null,
+        val parked: Boolean? = null,
+        val centralLockingOn: Boolean? = null,
+        val ignitionOn: Boolean? = null,
+        val trunkOpen: Boolean? = null,
+        val signalLevel: Double? = null,
+        val firmwareVersion: String? = null,
+        /** Sanitized full sensor payload for discovering additional read-only fields. */
+        val rawSensorsJson: String = "{}"
+    )
     data class Tokens(val access: String, val refresh: String, val userId: String?, val userToken: String?, val widgetId: String?)
 
     private data class HttpResult(

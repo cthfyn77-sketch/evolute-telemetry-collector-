@@ -9,8 +9,24 @@ android {
         applicationId = "com.evolute.telemetrycollector"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 4
+        versionName = "0.3.0"
+    }
+    flavorDimensions += "edition"
+    productFlavors {
+        create("standard") {
+            dimension = "edition"
+            manifestPlaceholders["appLabel"] = "Evolute Telemetry Collector"
+        }
+        create("pro") {
+            dimension = "edition"
+            applicationIdSuffix = ".pro"
+            versionNameSuffix = "-pro"
+            manifestPlaceholders["appLabel"] = "Evolute Telemetry Collector Pro"
+        }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
