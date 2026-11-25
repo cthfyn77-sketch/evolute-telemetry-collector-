@@ -1,6 +1,7 @@
 package com.evolute.telemetrycollector
 
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,7 +35,7 @@ class BatteryTelemetryFormatterTest {
             80.0, 1000.0, null, true, true, """{"battery":{"soh":$soh}}"""
         )
         val output = BatteryTelemetryFormatter.format(listOf(
-            sample(0, 96), sample(1, 96), sample(2, 70), sample(3, 96)
+            sample(0, 96), sample(1, 96), sample(2, 96), sample(3, 70), sample(4, 96)
         ))
         assertTrue(output.contains("soh: 96.0"))
         assertFalse(output.contains("soh: 70.0"))
@@ -46,7 +47,7 @@ class BatteryTelemetryFormatterTest {
             80.0, 1000.0, null, true, true, """{"battery":{"soh":$soh}}"""
         )
         val output = BatteryTelemetryFormatter.format(listOf(
-            sample(0, 96), sample(1, 96), sample(2, 90), sample(3, 90), sample(4, 90)
+            sample(0, 96), sample(1, 96), sample(2, 96), sample(3, 90), sample(4, 90), sample(5, 90)
         ))
         assertTrue(output.contains("soh: 90.0"))
     }
