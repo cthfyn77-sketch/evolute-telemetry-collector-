@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
     private lateinit var batteryMetricsValue: TextView
+    private lateinit var batteryHistoryValue: TextView
     private lateinit var apiFieldsValue: TextView
     private lateinit var apiFieldsCard: LinearLayout
     private lateinit var sensorReadingsContent: LinearLayout
@@ -288,6 +289,17 @@ class MainActivity : Activity() {
         content.addView(batteryCard)
 
         addGap(content, 10)
+        val batteryHistoryCard = card()
+        batteryHistoryCard.addView(text("ИСТОРИЯ И ДИАГНОСТИКА БАТАРЕИ", 11f, white, true))
+        addGap(batteryHistoryCard, 6)
+        batteryHistoryCard.addView(text("История датчиков из локальной базы · события показывают возможные сбои телеметрии, а не неисправность автомобиля", 9f, muted))
+        addGap(batteryHistoryCard, 8)
+        batteryHistoryValue = text("Ожидание истории батареи", 10f, white)
+        batteryHistoryValue.setLineSpacing(dp(2).toFloat(), 1f)
+        batteryHistoryCard.addView(batteryHistoryValue)
+        content.addView(batteryHistoryCard)
+
+        addGap(content, 10)
         apiFieldsCard = card()
         apiFieldsCard.addView(row().apply {
             addView(text("ТЕХНИЧЕСКИЕ ДАТЧИКИ", 11f, white, true),
@@ -509,9 +521,11 @@ class MainActivity : Activity() {
             socBar.layoutParams = params
         }
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
+        val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(240))
         batteryMetricsValue.text = if (latest != null) {
             BatteryTelemetryFormatter.format(db.recentSnapshots(20))
         } else "Ожидание данных батареи"
+        batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
         val averageConsumption = db.averageConsumptionPer100Km()
         consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
