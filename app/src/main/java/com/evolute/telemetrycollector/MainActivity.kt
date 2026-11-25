@@ -57,6 +57,7 @@ class MainActivity : Activity() {
     private lateinit var chartCard: LinearLayout
     private lateinit var tripHistoryCard: LinearLayout
     private lateinit var tripHistoryValue: TextView
+    private var lastTripHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -461,7 +462,8 @@ class MainActivity : Activity() {
     private fun updateDashboard() {
         val db = SnapshotDb.get(this)
         val latest = db.latestSnapshot()
-        recordValue.text = "Записей в базе: ${db.count()}"
+        val snapshotCount = db.count()
+        recordValue.text = "Записей в базе: $snapshotCount"
         if (latest == null) {
             socValue.text = "—%"
             socValue.setTextColor(white)
@@ -517,7 +519,10 @@ class MainActivity : Activity() {
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
-        renderTripHistory(db.allSnapshots())
+        if (snapshotCount != lastTripHistoryRecordCount) {
+            renderTripHistory(db.allSnapshots())
+            lastTripHistoryRecordCount = snapshotCount
+        }
         val snapshots = db.recentSnapshots(240)
         val mileageValues = snapshots.map { it.odometer }
         val hasChartHistory = snapshots.size >= 2
