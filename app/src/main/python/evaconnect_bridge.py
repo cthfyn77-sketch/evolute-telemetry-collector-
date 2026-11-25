@@ -30,6 +30,48 @@ def _redact_api_value(value):
     return str(value)
 
 
+
+def _error_payload(exc):
+    message = str(exc) or type(exc).__name__
+    message = re.sub(r"/car-service/car/v2/[0-9a-fA-F]{24}", "/car-service/car/v2/{carId}", message)
+    message = re.sub(r"/client-bff-service/telemetry/[^\\s]+", "/client-bff-service/telemetry/{vehicle}", message)
+    message = re.sub(r"(access-token|refresh-token|authorization)\\s*[:=]\\s*[^,;\\s]+", r"\\1=[REDACTED]", message, flags=re.IGNORECASE)
+    message = re.sub(r"[\\r\\n\\t]+", " ", message).strip()
+    return {"ok": False, "error": (message or type(exc).__name__)[:180]}
+
+
+def request_otp(phone: str, phone_country: str) -> str:
+    try:
+        with EvoluteClient(token_store=TokenStore(path=None)) as client:
+            info = client.get_info()
+            if getattr(info, "capcha", False):
+                raise ValueError("EVACONNECT требует CAPTCHA; автоматический обход не выполняется")
+            client.request_otp(phone.strip(), phone_country.strip().upper())
+        return json.dumps({"ok": True}, ensure_ascii=False, separators=(",", ":"))
+    except Exception as exc:
+        return json.dumps(_error_payload(exc), ensure_ascii=False, separators=(",", ":"))
+
+
+def sign_in(phone: str, code: str) -> str:
+    store = TokenStore(path=None)
+    try:
+        with EvoluteClient(token_store=store) as client:
+            tokens = client.sign_in(phone.strip(), code.strip())
+        return json.dumps({
+            "ok": True,
+            "access_token": store.access_token or getattr(tokens, "access_token", ""),
+            "refresh_token": store.refresh_token or getattr(tokens, "refresh_token", ""),
+            "user_id": store.user_id or getattr(tokens, "user_id", None),
+            "user_token": store.user_token or getattr(tokens, "user_token", None),
+            "widget_id": store.widget_id or getattr(tokens, "widget_id", None),
+        }, ensure_ascii=False, separators=(",", ":"))
+    except Exception as exc:
+        result = _error_payload(exc)
+        result["access_token"] = store.access_token or ""
+        result["refresh_token"] = store.refresh_token or ""
+        return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+
+
 def fetch_telemetry(access_token: str, refresh_token: str) -> str:
     store = TokenStore(path=None)
     store.access_token = access_token or None
