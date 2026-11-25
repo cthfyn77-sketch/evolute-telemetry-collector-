@@ -60,8 +60,8 @@ class RangeEstimatorTest {
                 90.0 - km * 0.4, 10.0 + km, null, true, true, "{}")
         }
         val combined = beforeCharge + charge + afterCharge
-        // The estimator must use only the 5 km after charging: 2% consumed, 86% remains.
-        assertEquals(215.0, RangeEstimator.estimate(combined)!!, 0.001)
+        // The estimator must use only the latest 5 km after charging: 2% consumed, 88% remains.
+        assertEquals(220.0, RangeEstimator.estimate(combined)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(combined)!!, 0.001)
     }
 
@@ -69,6 +69,6 @@ class RangeEstimatorTest {
         val first = (0..5).map { km -> snapshot(100.0 - km * 0.5, km.toDouble()) }
         val next = first + snapshot(94.0, 6.0)
         assertEquals(195.0, RangeEstimator.estimate(first)!!, 0.001)
-        assertEquals(134.2857143, RangeEstimator.estimate(next)!!, 0.001)
+        assertEquals(85.4545455, RangeEstimator.estimate(next)!!, 0.001)
     }
 }
