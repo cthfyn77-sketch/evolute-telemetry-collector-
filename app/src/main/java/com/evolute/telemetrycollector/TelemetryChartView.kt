@@ -72,7 +72,22 @@ class TelemetryChartView(
     private fun dp(value: Float) = value * resources.displayMetrics.density
 
     fun setSnapshots(next: List<TelemetrySnapshot>) {
-        snapshots = next.takeLast(240)
+        snapshots = if (axisMode == AxisMode.TIME) {
+            next.takeLast(240)
+        } else {
+            // Keep the full local mileage history; collapse repeated parked samples.
+            val byDistance = mutableListOf<TelemetrySnapshot>()
+            next.forEach { sample ->
+                val previous = byDistance.lastOrNull()
+                when {
+                    previous == null -> byDistance.add(sample)
+                    sample.odometer > previous.odometer + 0.001 -> byDistance.add(sample)
+                    abs(sample.odometer - previous.odometer) <= 0.001 -> byDistance[byDistance.lastIndex] = sample
+                    // Ignore stale/backfilled odometer regressions.
+                }
+            }
+            byDistance.takeLast(2000)
+        }
         invalidate()
     }
 
@@ -104,7 +119,18 @@ class TelemetryChartView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (snapshots.size < 2) return
+        if (snapshots.size < 2) {
+            axisText.color = android.graphics.Color.rgb(151, 172, 181)
+            axisText.textAlign = Paint.Align.CENTER
+            axisText.textSize = dp(11f)
+            val message = if (axisMode == AxisMode.DISTANCE) {
+                "История пробега появится после движения"
+            } else {
+                "Ожидание временной истории SOC"
+            }
+            canvas.drawText(message, width / 2f, height / 2f, axisText)
+            return
+        }
 
         val left = dp(13f)
         val right = width - dp(7f)
