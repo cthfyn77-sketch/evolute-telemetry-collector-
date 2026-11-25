@@ -55,8 +55,10 @@ class MainActivity : Activity() {
     private lateinit var dashboardBadge: TextView
     private lateinit var vehicleStateValue: TextView
     private lateinit var dataFreshnessValue: TextView
-    private lateinit var chart: TelemetryChartView
-    private lateinit var chartCard: LinearLayout
+    private lateinit var distanceChart: TelemetryChartView
+    private lateinit var timeChart: TelemetryChartView
+    private lateinit var distanceChartCard: LinearLayout
+    private lateinit var timeChartCard: LinearLayout
     private lateinit var tripHistoryCard: LinearLayout
     private lateinit var tripHistoryValue: TextView
     private var lastTripHistoryRecordCount = -1L
@@ -324,17 +326,24 @@ class MainActivity : Activity() {
         content.addView(apiFieldsCard)
 
         addGap(content, 12)
-        chartCard = card()
-        chartCard.addView(text("ДИНАМИКА ЗАРЯДА", 12f, white, true))
-        addGap(chartCard, 10)
-        chartCard.addView(row().apply {
-            addView(text("●  SOC / ПРОБЕГ", 9f, accent, true), LinearLayout.LayoutParams(0, -2, 1f))
-            addView(text("●  SOC / ВРЕМЯ", 9f, Color.rgb(96, 165, 250), true))
-        })
-        addGap(chartCard, 8)
-        chart = TelemetryChartView(this)
-        chartCard.addView(chart, LinearLayout.LayoutParams(-1, dp(176)))
-        content.addView(chartCard)
+        distanceChartCard = card()
+        distanceChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ПРОБЕГА", 11f, accent, true))
+        addGap(distanceChartCard, 5)
+        distanceChartCard.addView(text("Изменение процента заряда по пройденным километрам", 9f, muted))
+        addGap(distanceChartCard, 8)
+        distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
+        distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
+        content.addView(distanceChartCard)
+
+        addGap(content, 10)
+        timeChartCard = card()
+        timeChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ВРЕМЕНИ", 11f, Color.rgb(96, 165, 250), true))
+        addGap(timeChartCard, 5)
+        timeChartCard.addView(text("Изменение заряда во времени · стоянки и зарядка", 9f, muted))
+        addGap(timeChartCard, 8)
+        timeChart = TelemetryChartView(this, TelemetryChartView.AxisMode.TIME)
+        timeChartCard.addView(timeChart, LinearLayout.LayoutParams(-1, dp(176)))
+        content.addView(timeChartCard)
 
         addGap(content, 12)
         tripHistoryCard = card()
@@ -543,10 +552,13 @@ class MainActivity : Activity() {
             lastTripHistoryRecordCount = snapshotCount
         }
         val snapshots = db.recentSnapshots(240)
-        val mileageValues = snapshots.map { it.odometer }
-        val hasChartHistory = snapshots.size >= 2
-        chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
-        chart.setSnapshots(snapshots)
+        val hasTimeHistory = snapshots.size >= 2
+        val hasDistanceHistory = hasTimeHistory &&
+            (snapshots.maxOf { it.odometer } - snapshots.minOf { it.odometer }) > 0.001
+        distanceChartCard.visibility = if (hasDistanceHistory) View.VISIBLE else View.GONE
+        timeChartCard.visibility = if (hasTimeHistory) View.VISIBLE else View.GONE
+        distanceChart.setSnapshots(snapshots)
+        timeChart.setSnapshots(snapshots)
     }
 
     private fun renderTripHistory(history: List<com.evolute.telemetrycollector.data.TelemetrySnapshot>) {
