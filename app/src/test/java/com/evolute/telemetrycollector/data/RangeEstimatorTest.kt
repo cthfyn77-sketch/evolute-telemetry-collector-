@@ -71,4 +71,17 @@ class RangeEstimatorTest {
         assertEquals(195.0, RangeEstimator.estimate(first)!!, 0.001)
         assertEquals(85.4545455, RangeEstimator.estimate(next)!!, 0.001)
     }
+    @Test fun resetsConsumptionWindowAfterLongTelemetryGap() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T08:00:00Z", 100.0, 0.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:10:00Z", 80.0, 5.0, null, true, true, "{}")
+        ) + (1..5).map { km ->
+            TelemetrySnapshot(java.time.Instant.parse("2026-11-26T08:10:00Z").plusSeconds(km * 60L).toString(),
+                80.0 - km * 0.4, 5.0 + km, null, true, true, "{}")
+        }
+        // The outage jump is excluded; only the new 2% SOC / 5 km window is used.
+        assertEquals(195.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
 }
