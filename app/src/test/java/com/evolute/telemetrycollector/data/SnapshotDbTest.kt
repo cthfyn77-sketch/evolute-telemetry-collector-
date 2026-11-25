@@ -47,7 +47,7 @@ class SnapshotDbTest {
             db.insert(ApiClient.Telemetry(100.0 - km, 0.4 + km, 300.0, true, true, null))
         }
 
-        assertTrue(db.latest().contains("Расчётный запас: накопление данных"))
+        assertTrue(db.latest().contains("Расчётный запас: накапливаем данные"))
         db.insert(ApiClient.Telemetry(95.0, 5.4, 280.0, true, true, null))
 
         val latest = db.latest()
