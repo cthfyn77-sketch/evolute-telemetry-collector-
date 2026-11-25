@@ -12,7 +12,8 @@ class TripHistoryAnalyzerTest {
             sample(0, 90.0, 1000.0),
             sample(1, 89.8, 1000.5),
             sample(2, 89.0, 1001.0),
-            sample(3, 89.0, 1001.0)
+            sample(3, 89.0, 1001.0),
+            sample(18, 89.0, 1001.0)
         ))
         assertEquals(1, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
@@ -27,7 +28,8 @@ class TripHistoryAnalyzerTest {
             sample(2, 89.0, 1001.0),
             sample(20, 85.0, 1001.0),
             sample(21, 84.8, 1001.5),
-            sample(22, 84.0, 1002.0)
+            sample(22, 84.0, 1002.0),
+            sample(38, 84.0, 1002.0)
         ))
         assertEquals(2, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
