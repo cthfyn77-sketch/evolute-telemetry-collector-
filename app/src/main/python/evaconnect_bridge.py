@@ -65,13 +65,23 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
                 ),
             }
     except Exception as exc:
+        # Keep enough context to identify which evaconnect request was rejected,
+        # without ever exposing credentials or vehicle/account identifiers.
         status = getattr(exc, "status_code", None)
-        if status is not None:
-            error = f"{type(exc).__name__}: HTTP {status}"
-        elif isinstance(exc, ValueError):
-            error = str(exc)[:160]
-        else:
-            error = type(exc).__name__
+        cause = getattr(exc, "__cause__", None)
+        if status is None and cause is not None:
+            status = getattr(cause, "status_code", None)
+
+        message = str(exc) if not isinstance(exc, ValueError) else str(exc)
+        message = re.sub(r"/car-service/car/v2/[0-9a-fA-F]{24}", "/car-service/car/v2/{carId}", message)
+        message = re.sub(r"/client-bff-service/telemetry/[^\\s]+", "/client-bff-service/telemetry/{vehicle}", message)
+        message = re.sub(r"(access-token|refresh-token|authorization)\\s*[:=]\\s*[^,;\\s]+", r"\\1=[REDACTED]", message, flags=re.IGNORECASE)
+        message = re.sub(r"[\\r\\n\\t]+", " ", message).strip()
+        if not message:
+            message = type(exc).__name__
+        if status is not None and f"HTTP {status}" not in message:
+            message = f"{message} (HTTP {status})"
+        error = message[:180]
         payload = {"ok": False, "error": error}
     payload["access_token"] = store.access_token or ""
     payload["refresh_token"] = store.refresh_token or ""
