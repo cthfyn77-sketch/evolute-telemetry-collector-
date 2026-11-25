@@ -28,4 +28,27 @@ class BatteryTelemetryFormatterTest {
         val result = BatteryTelemetryFormatter.format("""{"cellVoltages":[3.51,3.52,3.50]}""")
         assertTrue(result.contains("cellVoltages: 3.51, 3.52, 3.5"))
     }
+    @Test fun ignoresSingleSohSpikeUntilThreeConsistentSamplesArrive() {
+        fun sample(minute: Int, soh: Int) = com.evolute.telemetrycollector.data.TelemetrySnapshot(
+            "2026-11-26T10:${minute.toString().padStart(2, '0')}:00Z",
+            80.0, 1000.0, null, true, true, """{"battery":{"soh":$soh}}"""
+        )
+        val output = BatteryTelemetryFormatter.format(listOf(
+            sample(0, 96), sample(1, 96), sample(2, 70), sample(3, 96)
+        ))
+        assertTrue(output.contains("soh: 96.0"))
+        assertFalse(output.contains("soh: 70.0"))
+    }
+
+    @Test fun acceptsSohChangeAfterThreeConsistentReadings() {
+        fun sample(minute: Int, soh: Int) = com.evolute.telemetrycollector.data.TelemetrySnapshot(
+            "2026-11-26T10:${minute.toString().padStart(2, '0')}:00Z",
+            80.0, 1000.0, null, true, true, """{"battery":{"soh":$soh}}"""
+        )
+        val output = BatteryTelemetryFormatter.format(listOf(
+            sample(0, 96), sample(1, 96), sample(2, 90), sample(3, 90), sample(4, 90)
+        ))
+        assertTrue(output.contains("soh: 90.0"))
+    }
+
 }
