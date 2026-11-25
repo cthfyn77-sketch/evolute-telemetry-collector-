@@ -88,6 +88,21 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             rows
         }
 
+    /** Full chronological sample window for local trip reconstruction. */
+    fun allSnapshots(limit: Int = 20000): List<TelemetrySnapshot> =
+        readableDatabase.rawQuery(
+            "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT ?",
+            arrayOf(limit.coerceIn(1, 50000).toString())
+        ).use { c ->
+            val rows = mutableListOf<TelemetrySnapshot>()
+            while (c.moveToNext()) rows.add(TelemetrySnapshot(
+                c.getString(0), c.getDouble(1), c.getDouble(2),
+                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1, c.getString(6)
+            ))
+            rows.reverse()
+            rows
+        }
+
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"
         return "Время: ${item.capturedAt}\nSOC: ${item.soc}%\nОдометр: ${item.odometer} км\nШтатный запас: ${item.stockRange?.let { "$it км" } ?: "—"}\nОнлайн: ${item.online}; готовность: ${item.ready}"
