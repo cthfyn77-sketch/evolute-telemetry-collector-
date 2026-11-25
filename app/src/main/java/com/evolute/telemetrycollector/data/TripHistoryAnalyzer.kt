@@ -54,7 +54,8 @@ internal object TripHistoryAnalyzer {
 
             // Never infer a precise trip segment or SOC consumption across a telemetry outage.
             // Discard the incomplete segment and use the recovered sample as a new baseline.
-            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS) {
+            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS &&
+                current.odometer - previous.odometer > MOVEMENT_EPSILON_KM) {
                 active = null
                 lastMovementAt = 0L
                 continue
