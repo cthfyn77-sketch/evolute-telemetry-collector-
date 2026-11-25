@@ -501,7 +501,7 @@ class MainActivity : Activity() {
             dashboardBadge.setTextColor(if (latest.online) accent else muted)
             vehicleStateValue.text = if (latest.ready) "Готов к движению" else "Не готов к движению"
             vehicleStateValue.setTextColor(if (latest.ready) accent else muted)
-            dataFreshnessValue.text = "Последний снимок: ${formatSnapshotAge(latest.capturedAt)}"
+            dataFreshnessValue.text = formatDataFreshness(db, latest)
             val trackWidth = (socBar.parent as? View)?.width
                 ?: (resources.displayMetrics.widthPixels - dp(68)).coerceAtLeast(dp(100))
             val params = socBar.layoutParams
@@ -509,9 +509,9 @@ class MainActivity : Activity() {
             socBar.layoutParams = params
         }
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
-        batteryMetricsValue.text = latest?.let {
-            BatteryTelemetryFormatter.format(it.sensorsJson)
-        } ?: "Ожидание данных батареи"
+        batteryMetricsValue.text = if (latest != null) {
+            BatteryTelemetryFormatter.format(db.recentSnapshots(20))
+        } else "Ожидание данных батареи"
         val averageConsumption = db.averageConsumptionPer100Km()
         consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
@@ -544,6 +544,31 @@ class MainActivity : Activity() {
             val soc = trip.socUsedPercent?.let { " · расход SOC ${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: ""
             "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc"
         }
+    }
+
+    private fun formatDataFreshness(
+        db: SnapshotDb,
+        latest: com.evolute.telemetrycollector.data.TelemetrySnapshot
+    ): String {
+        val localLabel = "Последний снимок: ${formatSnapshotAge(latest.capturedAt)}"
+        val serverTime = try { latest.apiUpdatedAt?.let { java.time.Instant.parse(it) } } catch (_: Exception) { null }
+            ?: return localLabel
+        val capturedTime = try { java.time.Instant.parse(latest.capturedAt) } catch (_: Exception) { return localLabel }
+        val serverAgeSeconds = java.time.Duration.between(serverTime, capturedTime).seconds
+        if (serverAgeSeconds > 180) {
+            return "$localLabel · данные сервера устарели (${serverAgeSeconds / 60} мин.)"
+        }
+        val recent = db.recentSnapshots(2)
+        if (recent.size == 2) {
+            val previousTime = try { java.time.Instant.parse(recent[0].capturedAt) } catch (_: Exception) { null }
+            val currentTime = try { java.time.Instant.parse(recent[1].capturedAt) } catch (_: Exception) { null }
+            if (previousTime != null && currentTime != null &&
+                java.time.Duration.between(previousTime, currentTime).seconds > 180 &&
+                serverAgeSeconds in -60..180) {
+                return "Связь восстановлена · данные синхронизированы\n$localLabel"
+            }
+        }
+        return localLabel
     }
 
     private fun formatSnapshotAge(timestamp: String): String {
