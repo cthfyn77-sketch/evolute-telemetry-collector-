@@ -22,6 +22,7 @@ import com.chaquo.python.android.AndroidPlatform
 import java.io.IOException
 import com.evolute.telemetrycollector.data.KeystoreTokenStore
 import com.evolute.telemetrycollector.data.SnapshotDb
+import com.evolute.telemetrycollector.data.BatteryHistoryAnalyzer
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
