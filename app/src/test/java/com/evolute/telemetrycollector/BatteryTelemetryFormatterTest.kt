@@ -2,7 +2,12 @@ package com.evolute.telemetrycollector
 
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class BatteryTelemetryFormatterTest {
     @Test fun showsOnlyBatteryRelatedFieldsAndPreservesApiValues() {
         val raw = """{"sensors":{"batteryVoltage":352.4,"batteryCurrent":-12.5,"batteryTemperature":24,"odometer":1200}}"""
