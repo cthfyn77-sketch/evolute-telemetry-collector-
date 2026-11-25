@@ -79,7 +79,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
     fun recentSnapshots(limit: Int = 24): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
             "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT ?",
-            arrayOf(limit.coerceIn(1, 200).toString())
+            arrayOf(limit.coerceIn(1, 1000).toString())
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(TelemetrySnapshot(

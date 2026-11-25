@@ -49,6 +49,14 @@ class SnapshotDbTest {
         assertTrue(csv.contains(Regex(",50(?:\\.0)?,1000(?:\\.0)?,,0,1")))
     }
 
+    @Test fun recentSnapshotsHonorsAWindowLargerThanTwoHundredRows() {
+        repeat(250) { index ->
+            db.insert(ApiClient.Telemetry(80.0 - index * 0.01, 1000.0 + index, null, true, true, null))
+        }
+        assertEquals(240, db.recentSnapshots(240).size)
+        assertEquals(250, db.recentSnapshots(1000).size)
+    }
+
     @Test fun emptyDatabaseHasNoLatestRecord() {
         assertEquals(0L, db.count())
         assertEquals("Пока нет записей", db.latest())

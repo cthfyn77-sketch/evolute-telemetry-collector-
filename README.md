@@ -64,3 +64,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Flags isolated one-sample spikes only when the following sample returns near the prior value; intervals spanning more than three minutes are not connected.
 - Alerts are telemetry-quality hints, not vehicle fault diagnoses. No vehicle commands or remote services are added.
 - Release version: 0.8.0 (versionCode 8).
+
+
+## v132 — extended battery history
+
+- Battery history diagnostics now analyze the latest 480 snapshots (about four hours at the normal 30-second collection interval).
+- Snapshot queries support up to 1,000 recent records; the dashboard history analysis is cached and recalculated only when a new snapshot is stored.
+- The existing telemetry-gap and battery spike rules are unchanged.
+- Release version: 0.9.0 (versionCode 9).

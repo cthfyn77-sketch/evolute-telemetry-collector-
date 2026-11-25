@@ -60,6 +60,7 @@ class MainActivity : Activity() {
     private lateinit var tripHistoryCard: LinearLayout
     private lateinit var tripHistoryValue: TextView
     private var lastTripHistoryRecordCount = -1L
+    private var lastBatteryHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -291,7 +292,7 @@ class MainActivity : Activity() {
 
         addGap(content, 10)
         val batteryHistoryCard = card()
-        batteryHistoryCard.addView(text("ИСТОРИЯ И ДИАГНОСТИКА БАТАРЕИ", 11f, white, true))
+        batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ · 4 ЧАСА", 11f, white, true))
         addGap(batteryHistoryCard, 6)
         batteryHistoryCard.addView(text("История датчиков из локальной базы · события показывают возможные сбои телеметрии, а не неисправность автомобиля", 9f, muted))
         addGap(batteryHistoryCard, 8)
@@ -522,7 +523,10 @@ class MainActivity : Activity() {
             socBar.layoutParams = params
         }
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
-        val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(240))
+        if (snapshotCount != lastBatteryHistoryRecordCount) {
+            val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
+                lastBatteryHistoryRecordCount = snapshotCount
+        }
         batteryMetricsValue.text = if (latest != null) {
             BatteryTelemetryFormatter.format(db.recentSnapshots(20))
         } else "Ожидание данных батареи"
