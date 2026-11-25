@@ -72,3 +72,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Snapshot queries support up to 1,000 recent records; the dashboard history analysis is cached and recalculated only when a new snapshot is stored.
 - The existing telemetry-gap and battery spike rules are unchanged.
 - Release version: 0.9.0 (versionCode 9).
+
+
+## v133 — separate SOC charts
+
+- Splits the combined SOC plot into two independent charts: SOC versus odometer distance and SOC versus capture time.
+- The time chart retains highlighting for stationary charging sessions; the distance chart is shown once odometer movement is present.
+- Both charts use the same latest 240 locally stored snapshots. Telemetry collection, range estimation, gap handling and battery-history analysis are unchanged.
+- Release version: 0.10.0 (versionCode 10).
