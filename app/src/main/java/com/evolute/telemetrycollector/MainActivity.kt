@@ -55,6 +55,8 @@ class MainActivity : Activity() {
     private lateinit var dataFreshnessValue: TextView
     private lateinit var chart: TelemetryChartView
     private lateinit var chartCard: LinearLayout
+    private lateinit var tripHistoryCard: LinearLayout
+    private lateinit var tripHistoryValue: TextView
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -320,6 +322,20 @@ class MainActivity : Activity() {
         content.addView(chartCard)
 
         addGap(content, 12)
+        tripHistoryCard = card()
+        tripHistoryCard.addView(text("ИСТОРИЯ ПОЕЗДОК", 12f, white, true))
+        addGap(tripHistoryCard, 6)
+        tripHistoryCard.addView(text(
+            "По фактическим изменениям одометра и SOC · поездка завершается после 15 минут без движения",
+            9f, muted
+        ))
+        addGap(tripHistoryCard, 8)
+        tripHistoryValue = text("Пока нет завершённых поездок", 11f, white)
+        tripHistoryValue.setLineSpacing(dp(3).toFloat(), 1f)
+        tripHistoryCard.addView(tripHistoryValue)
+        content.addView(tripHistoryCard)
+
+        addGap(content, 12)
         val collection = card()
         collection.addView(row().apply {
             addView(text("СБОР ТЕЛЕМЕТРИИ", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -501,11 +517,28 @@ class MainActivity : Activity() {
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
+        renderTripHistory(db.allSnapshots())
         val snapshots = db.recentSnapshots(240)
         val mileageValues = snapshots.map { it.odometer }
         val hasChartHistory = snapshots.size >= 2
         chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
         chart.setSnapshots(snapshots)
+    }
+
+    private fun renderTripHistory(history: List<com.evolute.telemetrycollector.data.TelemetrySnapshot>) {
+        val trips = com.evolute.telemetrycollector.data.TripHistoryAnalyzer.analyze(history).take(8)
+        if (trips.isEmpty()) {
+            tripHistoryValue.text = "Пока нет завершённых поездок. Данные появятся после движения и завершения стоянки."
+            return
+        }
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
+            .withZone(java.time.ZoneId.systemDefault())
+        tripHistoryValue.text = trips.joinToString("\n\n") { trip ->
+            val date = formatter.format(java.time.Instant.parse(trip.startedAt))
+            val durationMinutes = (trip.durationSeconds / 60).coerceAtLeast(1)
+            val soc = trip.socUsedPercent?.let { " · расход SOC ${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: ""
+            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc"
+        }
     }
 
     private fun formatSnapshotAge(timestamp: String): String {
