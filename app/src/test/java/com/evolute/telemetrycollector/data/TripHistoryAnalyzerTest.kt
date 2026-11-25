@@ -55,4 +55,20 @@ class TripHistoryAnalyzerTest {
         ))
         assertTrue(trips.isEmpty())
     }
+    @Test fun doesNotBuildTripAcrossTelemetryOutage() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.6),
+            sample(2, 89.0, 1001.0),
+            sample(10, 80.0, 1010.0),
+            sample(11, 79.5, 1010.6),
+            sample(12, 79.0, 1011.0),
+            sample(28, 79.0, 1011.0)
+        ))
+        assertEquals(1, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
+        assertEquals("2026-11-26T10:11:00Z", trips[0].startedAt)
+    }
+
 }
