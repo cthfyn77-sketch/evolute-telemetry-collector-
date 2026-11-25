@@ -1,7 +1,7 @@
 package com.evolute.telemetrycollector.data
 
 /**
- * Uses one-kilometre SOC checkpoints over the latest 10 km of driving.
+ * Uses one-kilometre SOC checkpoints over the latest 5 km of driving.
  * A stationary SOC increase marks charging and resets the estimation window.
  */
 internal data class RangeMetrics(
@@ -11,7 +11,7 @@ internal data class RangeMetrics(
 
 internal object RangeEstimator {
     private const val STEP_KM = 1.0
-    private const val WINDOW_KM = 10.0
+    private const val WINDOW_KM = 5.0
     private const val EPSILON = 0.0001
     private const val CHARGE_RISE_SOC = 0.2
 
@@ -38,7 +38,7 @@ internal object RangeEstimator {
             val distance = current.odometer - previous.odometer
 
             // Charging is identified only when SOC rises while odometer remains stationary.
-            // Drop all pre-charge checkpoints so a 10-km window cannot span a charge session.
+            // Drop all pre-charge checkpoints so a 5-km window cannot span a charge session.
             if (kotlin.math.abs(distance) <= EPSILON &&
                 current.soc - previous.soc >= CHARGE_RISE_SOC) {
                 checkpoints.clear()
@@ -61,8 +61,8 @@ internal object RangeEstimator {
             }
         }
 
-        if (checkpoints.size < 11) return null
-        val start = checkpoints[checkpoints.size - 11]
+        if (checkpoints.size < 6) return null
+        val start = checkpoints[checkpoints.size - 6]
         val end = checkpoints.last()
         if (end.first - start.first < WINDOW_KM - EPSILON) return null
         val consumedSoc = start.second - end.second
