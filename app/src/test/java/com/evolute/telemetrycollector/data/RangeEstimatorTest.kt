@@ -42,8 +42,8 @@ class RangeEstimatorTest {
             }
             snapshot(soc, km.toDouble())
         }
-        // Last 5 km used 1% SOC; 79% remains => 395 km.
-        assertEquals(395.0, RangeEstimator.estimate(history)!!, 0.001)
+        // Last 5 km used 1% SOC; 78% remains => 390 km.
+        assertEquals(390.0, RangeEstimator.estimate(history)!!, 0.001)
     }
 
     @Test fun chargingSessionResetsFiveKilometerConsumptionWindow() {
