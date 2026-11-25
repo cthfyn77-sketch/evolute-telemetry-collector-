@@ -221,7 +221,7 @@ class MainActivity : Activity() {
         calcColumn.addView(text("НАШ РАСЧЁТ", 9f, accent, true))
         calculatedRangeValue = text("— км", 24f, accent, true)
         calcColumn.addView(calculatedRangeValue)
-        calculatedRangeHint = text("Нужно проехать 10 км", 9f, muted)
+        calculatedRangeHint = text("Штатный прогноз · сбор истории 5 км", 9f, muted)
         calcColumn.addView(calculatedRangeHint)
         rangeColumns.addView(stockColumn, LinearLayout.LayoutParams(0, -2, 1f))
         rangeColumns.addView(View(this).apply { setBackgroundColor(Color.rgb(54, 70, 78)) },
@@ -238,7 +238,7 @@ class MainActivity : Activity() {
         addGap(consumptionCard, 5)
         consumptionValue = text("— % / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("По фактическому расходу SOC за последние 10 км", 9f, muted))
+        consumptionCard.addView(text("По фактическому расходу SOC за последние 5 км", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -395,6 +395,8 @@ class MainActivity : Activity() {
             socValue.setTextColor(white)
             socBar.background = rounded(Color.rgb(73, 88, 96), 8)
             rangeValue.text = "— км"
+            calculatedRangeValue.text = "— км"
+            calculatedRangeHint.text = "Ожидание телеметрии"
             consumptionValue.text = "— % / 100 км"
             odometerValue.text = "— км"
             connectionValue.text = "Ожидание телеметрии"
@@ -405,6 +407,13 @@ class MainActivity : Activity() {
             socValue.setTextColor(socColor)
             socBar.background = rounded(socColor, 8)
             rangeValue.text = latest.stockRange?.let { "${it.toInt()} км" } ?: "— км"
+            val calculatedRange = db.calculatedRangeKm()
+            calculatedRangeValue.text = (calculatedRange ?: latest.stockRange)?.let { "${it.toInt()} км" } ?: "— км"
+            calculatedRangeHint.text = if (calculatedRange != null) {
+                "По фактическому расходу SOC · окно 5 км"
+            } else {
+                "Штатный прогноз · сбор истории 5 км"
+            }
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
             connectionValue.setTextColor(if (latest.online) accent else muted)
