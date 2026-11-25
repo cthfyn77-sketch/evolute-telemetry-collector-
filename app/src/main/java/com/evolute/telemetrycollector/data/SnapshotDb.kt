@@ -12,7 +12,8 @@ data class TelemetrySnapshot(
     val stockRange: Double?,
     val online: Boolean,
     val ready: Boolean,
-    val sensorsJson: String
+    val sensorsJson: String,
+    val apiUpdatedAt: String? = null
 )
 
 class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
@@ -47,14 +48,14 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     /** Estimated range based on 1-km SOC checkpoints, smoothed over the last 10 km. */
     private fun estimationHistory(): List<TelemetrySnapshot> = readableDatabase.rawQuery(
-            "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC",
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC",
             null
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(TelemetrySnapshot(
-                c.getString(0), c.getDouble(1), c.getDouble(2),
-                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1,
-                c.getInt(5) == 1, c.getString(6)
+                c.getString(0), c.getDouble(2), c.getDouble(3),
+                if (c.isNull(4)) null else c.getDouble(4), c.getInt(5) == 1,
+                c.getInt(6) == 1, c.getString(7), if (c.isNull(1)) null else c.getString(1)
             ))
             rows
         }
@@ -67,16 +68,17 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
     }
 
     fun latestSnapshot(): TelemetrySnapshot? = readableDatabase.rawQuery(
-        "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT 1", null
+        "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT 1", null
     ).use { c ->
         if (!c.moveToFirst()) return null
-        TelemetrySnapshot(c.getString(0), c.getDouble(1), c.getDouble(2),
-            if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1, c.getString(6))
+        TelemetrySnapshot(c.getString(0), c.getDouble(2), c.getDouble(3),
+            if (c.isNull(4)) null else c.getDouble(4), c.getInt(5) == 1, c.getInt(6) == 1,
+            c.getString(7), if (c.isNull(1)) null else c.getString(1))
     }
 
     fun recentSnapshots(limit: Int = 24): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
-            "SELECT captured_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT ?",
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id DESC LIMIT ?",
             arrayOf(limit.coerceIn(1, 200).toString())
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
