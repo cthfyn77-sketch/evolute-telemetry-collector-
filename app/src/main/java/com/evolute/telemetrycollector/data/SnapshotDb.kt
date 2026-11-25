@@ -182,7 +182,9 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             if (e.moveToFirst()) {
                 "Расчётный запас: ${formatKm(it.getDouble(1) / e.getDouble(1))} км (текущий SOC / сглаженный расход ${String.format(Locale.US, "%.3f", e.getDouble(1))}%/км; сглаживание обновлено на одометре ${formatKm(e.getDouble(2))} км)"
             } else {
-                "Расчётный запас: накопление данных, первое сглаживание через 5 км"
+                val fallback = if (it.isNull(3)) "штатный запас пока недоступен" else
+                    "временно используем штатный запас ${formatKm(it.getDouble(3))} км"
+                "Расчётный запас: накапливаем данные; $fallback"
             }
         }
         "Время: ${it.getString(0)}\nSOC: ${it.getDouble(1)}%\nОдометр: ${it.getDouble(2)} км\n$estimate\nШтатный запас: ${if(stock == "—") stock else "$stock км"}\nОнлайн: ${it.getInt(4)==1}; готовность: ${it.getInt(5)==1}"
