@@ -180,7 +180,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             "SELECT range_km,consumption_per_km,updated_at_odometer FROM range_estimate WHERE id=1", null
         ).use { e ->
             if (e.moveToFirst()) {
-                "Расчётный запас: ${formatKm(e.getDouble(0))} км (сглаженный расход ${String.format(Locale.US, "%.3f", e.getDouble(1))}%/км; обновлён на одометре ${formatKm(e.getDouble(2))} км)"
+                "Расчётный запас: ${formatKm(it.getDouble(1) / e.getDouble(1))} км (текущий SOC / сглаженный расход ${String.format(Locale.US, "%.3f", e.getDouble(1))}%/км; сглаживание обновлено на одометре ${formatKm(e.getDouble(2))} км)"
             } else {
                 "Расчётный запас: накопление данных, первое сглаживание через 5 км"
             }
