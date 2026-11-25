@@ -531,7 +531,6 @@ class MainActivity : Activity() {
         batteryMetricsValue.text = if (latest != null) {
             BatteryTelemetryFormatter.format(db.recentSnapshots(20))
         } else "Ожидание данных батареи"
-        batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
         val averageConsumption = db.averageConsumptionPer100Km()
         consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
