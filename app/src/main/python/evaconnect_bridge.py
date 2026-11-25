@@ -34,9 +34,9 @@ def _redact_api_value(value):
 def _error_payload(exc):
     message = str(exc) or type(exc).__name__
     message = re.sub(r"/car-service/car/v2/[0-9a-fA-F]{24}", "/car-service/car/v2/{carId}", message)
-    message = re.sub(r"/client-bff-service/telemetry/[^\\s]+", "/client-bff-service/telemetry/{vehicle}", message)
-    message = re.sub(r"(access-token|refresh-token|authorization)\\s*[:=]\\s*[^,;\\s]+", r"\\1=[REDACTED]", message, flags=re.IGNORECASE)
-    message = re.sub(r"[\\r\\n\\t]+", " ", message).strip()
+    message = re.sub(r"/client-bff-service/telemetry/[^\s]+", "/client-bff-service/telemetry/{vehicle}", message)
+    message = re.sub(r"(access-token|refresh-token|authorization)\s*[:=]\s*[^,;\s]+", r"\1=[REDACTED]", message, flags=re.IGNORECASE)
+    message = re.sub(r"[\r\n\t]+", " ", message).strip()
     return {"ok": False, "error": (message or type(exc).__name__)[:180]}
 
 
@@ -116,9 +116,9 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
 
         message = str(exc) if not isinstance(exc, ValueError) else str(exc)
         message = re.sub(r"/car-service/car/v2/[0-9a-fA-F]{24}", "/car-service/car/v2/{carId}", message)
-        message = re.sub(r"/client-bff-service/telemetry/[^\\s]+", "/client-bff-service/telemetry/{vehicle}", message)
-        message = re.sub(r"(access-token|refresh-token|authorization)\\s*[:=]\\s*[^,;\\s]+", r"\\1=[REDACTED]", message, flags=re.IGNORECASE)
-        message = re.sub(r"[\\r\\n\\t]+", " ", message).strip()
+        message = re.sub(r"/client-bff-service/telemetry/[^\s]+", "/client-bff-service/telemetry/{vehicle}", message)
+        message = re.sub(r"(access-token|refresh-token|authorization)\s*[:=]\s*[^,;\s]+", r"\1=[REDACTED]", message, flags=re.IGNORECASE)
+        message = re.sub(r"[\r\n\t]+", " ", message).strip()
         if not message:
             message = type(exc).__name__
         if status is not None and f"HTTP {status}" not in message:
