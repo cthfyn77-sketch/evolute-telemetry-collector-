@@ -66,7 +66,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             }
             db.insertOrThrow("snapshots",null,v)
 
-            if (previous != null) processKilometres(db, previous.second, previous.first, t.odometer, t.soc)
+            if (previous != null) {\n                processKilometres(db, previous.second, previous.first, t.odometer, t.soc)\n            } else if (kotlin.math.abs(t.odometer - floor(t.odometer)) < 0.000001) {\n                val anchor = ContentValues().apply { put("km_mark", floor(t.odometer).toLong()); put("soc_at_mark", t.soc); putNull("soc_consumed") }\n                db.insertWithOnConflict("range_km_samples", null, anchor, SQLiteDatabase.CONFLICT_REPLACE)\n            }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
