@@ -54,6 +54,11 @@ class SnapshotDbTest {
         assertTrue(latest.contains("Расчётный запас: 95.0 км"))
         assertTrue(latest.contains("сглаженный расход 1.000%/км"))
         assertTrue(latest.contains("Штатный запас: 280.0 км"))
+
+        // The smoothed consumption stays fixed between 5 km updates, but range
+        // is recalculated from the latest SOC on every status refresh.
+        db.insert(ApiClient.Telemetry(90.0, 5.4, 260.0, true, true, null))
+        assertTrue(db.latest().contains("Расчётный запас: 90.0 км"))
     }
 
     @Test fun exportsStoredRowsAsCsv() {
