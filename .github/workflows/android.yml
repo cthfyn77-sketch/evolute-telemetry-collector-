@@ -36,12 +36,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          missing=0
           for name in SIGNING_KEYSTORE_BASE64 SIGNING_KEYSTORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::Required GitHub Actions secret $name is not configured for this repository."
-              exit 1
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
             fi
           done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
           printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/evolute-release.jks"
           test -s "$RUNNER_TEMP/evolute-release.jks"
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/evolute-release.jks" >> "$GITHUB_ENV"
