@@ -51,7 +51,7 @@ internal object RangeEstimator {
 
             // A long collection gap makes interpolation unsafe: the car may have moved
             // while no samples were recorded. Start a fresh window at the first new sample.
-            if (isTelemetryGap(previous, current)) {
+            if (isTelemetryGap(previous, current) && distance > EPSILON) {
                 checkpoints.clear()
                 checkpoints.add(current.odometer to current.soc)
                 nextCheckpoint = kotlin.math.floor(current.odometer + EPSILON) + STEP_KM
