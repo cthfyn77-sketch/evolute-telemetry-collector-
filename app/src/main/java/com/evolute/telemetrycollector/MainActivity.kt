@@ -49,6 +49,9 @@ class MainActivity : Activity() {
     private var sensorReadingsVisible = true
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
+    private lateinit var dashboardBadge: TextView
+    private lateinit var vehicleStateValue: TextView
+    private lateinit var dataFreshnessValue: TextView
     private lateinit var chart: TelemetryChartView
     private lateinit var chartCard: LinearLayout
     private lateinit var store: KeystoreTokenStore
@@ -152,7 +155,8 @@ class MainActivity : Activity() {
                 addView(text("EVOLUTE", 19f, white, true))
                 addView(text("TELEMETRY  /  PRO", 10f, muted, true))
             }, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(text("● ONLINE", 12f, accent, true))
+            dashboardBadge = text("○ ОЖИДАНИЕ", 11f, muted, true)
+            addView(dashboardBadge)
         })
         addGap(content, 20)
 
@@ -212,6 +216,17 @@ class MainActivity : Activity() {
         connectionValue = text("Ожидание телеметрии", 12f, muted)
         hero.addView(connectionValue)
         content.addView(hero)
+
+        addGap(content, 12)
+        val vehicleStateCard = card()
+        vehicleStateCard.addView(text("СОСТОЯНИЕ АВТОМОБИЛЯ", 10f, muted, true))
+        addGap(vehicleStateCard, 8)
+        vehicleStateValue = text("Ожидание данных автомобиля", 16f, white, true)
+        vehicleStateCard.addView(vehicleStateValue)
+        addGap(vehicleStateCard, 5)
+        dataFreshnessValue = text("Данные ещё не получены", 10f, muted)
+        vehicleStateCard.addView(dataFreshnessValue)
+        content.addView(vehicleStateCard)
 
         addGap(content, 12)
         val rangeCard = card()
@@ -426,6 +441,12 @@ class MainActivity : Activity() {
             consumptionValue.text = "— % / 100 км"
             odometerValue.text = "— км"
             connectionValue.text = "Ожидание телеметрии"
+            connectionValue.setTextColor(muted)
+            dashboardBadge.text = "○ ОЖИДАНИЕ"
+            dashboardBadge.setTextColor(muted)
+            vehicleStateValue.text = "Ожидание данных автомобиля"
+            vehicleStateValue.setTextColor(white)
+            dataFreshnessValue.text = "Данные ещё не получены"
         } else {
             val currentSoc = latest.soc.coerceIn(0.0, 100.0)
             val socColor = socLevelColor(currentSoc)
@@ -443,6 +464,11 @@ class MainActivity : Activity() {
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
             connectionValue.setTextColor(if (latest.online) accent else muted)
+            dashboardBadge.text = if (latest.online) "● АВТО НА СВЯЗИ" else "○ АВТО НЕ В СЕТИ"
+            dashboardBadge.setTextColor(if (latest.online) accent else muted)
+            vehicleStateValue.text = if (latest.ready) "Готов к движению" else "Не готов к движению"
+            vehicleStateValue.setTextColor(if (latest.ready) accent else muted)
+            dataFreshnessValue.text = "Последний снимок: ${formatSnapshotAge(latest.capturedAt)}"
             val trackWidth = (socBar.parent as? View)?.width
                 ?: (resources.displayMetrics.widthPixels - dp(68)).coerceAtLeast(dp(100))
             val params = socBar.layoutParams
@@ -462,6 +488,23 @@ class MainActivity : Activity() {
         val hasChartHistory = snapshots.size >= 2
         chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
         chart.setSnapshots(snapshots)
+    }
+
+    private fun formatSnapshotAge(timestamp: String): String {
+        return try {
+            val captured = java.time.Instant.parse(timestamp)
+            val seconds = java.time.Duration.between(captured, java.time.Instant.now()).seconds.coerceAtLeast(0)
+            val age = when {
+                seconds < 60 -> "$seconds сек. назад"
+                seconds < 3600 -> "${seconds / 60} мин. назад"
+                else -> "${seconds / 3600} ч. ${(seconds % 3600) / 60} мин. назад"
+            }
+            val localTime = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
+                .withZone(java.time.ZoneId.systemDefault()).format(captured)
+            "$localTime · $age"
+        } catch (_: Exception) {
+            timestamp
+        }
     }
 
     private fun formatApiFields(raw: String): String {
