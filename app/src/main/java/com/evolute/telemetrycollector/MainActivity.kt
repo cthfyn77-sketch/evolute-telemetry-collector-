@@ -525,7 +525,8 @@ class MainActivity : Activity() {
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
             val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
-                lastBatteryHistoryRecordCount = snapshotCount
+            batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
+            lastBatteryHistoryRecordCount = snapshotCount
         }
         batteryMetricsValue.text = if (latest != null) {
             BatteryTelemetryFormatter.format(db.recentSnapshots(20))
