@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.evolute.telemetrycollector.data.ApiClient
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import java.io.IOException
