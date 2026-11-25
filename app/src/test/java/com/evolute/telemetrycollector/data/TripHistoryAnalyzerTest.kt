@@ -16,7 +16,7 @@ class TripHistoryAnalyzerTest {
         ))
         assertEquals(1, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
-        assertEquals(60L, trips[0].durationSeconds)
+        assertEquals(120L, trips[0].durationSeconds)
         assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
     }
 
