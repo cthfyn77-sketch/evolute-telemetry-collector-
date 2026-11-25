@@ -54,12 +54,18 @@ class SnapshotDbTest {
     }
 
     @Test fun exportsStoredRowsAsCsv() {
-        db.insert(ApiClient.Telemetry(50.0, 1000.0, null, false, true, null))
+        db.insert(ApiClient.Telemetry(
+            50.0, 1000.0, null, false, true, null,
+            rawSensorsJson = """{"instantPower":18.6,"motorCurrent":42.1}"""
+        ))
         val output = ByteArrayOutputStream()
         db.exportCsv(output)
         val csv = output.toString(Charsets.UTF_8.name())
 
         assertTrue(csv.startsWith("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,battery_temp"))
+        assertTrue(csv.contains("raw_sensors_json"))
+        assertTrue(csv.contains("instantPower"))
+        assertTrue(csv.contains("18.6"))
         assertTrue(csv.contains(Regex(",50(?:\\.0)?,1000(?:\\.0)?,,0,1,")))
     }
 

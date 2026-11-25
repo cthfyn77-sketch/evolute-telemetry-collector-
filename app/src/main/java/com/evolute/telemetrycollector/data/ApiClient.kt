@@ -33,7 +33,9 @@ class ApiClient(private val tokens: TokenStore) {
         val ignitionOn: Boolean? = null,
         val trunkOpen: Boolean? = null,
         val signalLevel: Double? = null,
-        val firmwareVersion: String? = null
+        val firmwareVersion: String? = null,
+        /** Sanitized full sensor payload for discovering additional read-only fields. */
+        val rawSensorsJson: String = "{}"
     )
     data class Tokens(val access: String, val refresh: String, val userId: String?, val userToken: String?, val widgetId: String?)
 

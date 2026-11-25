@@ -67,6 +67,24 @@ class TelemetryParserTest {
         assertNull(result.voltage12v)
     }
 
+    @Test fun preservesUnknownSensorsButExcludesLocationAndIdentifiers() {
+        val result = TelemetryParser.parse(JSONObject("""{
+            "sensors":{
+                "batteryPercentage":50,"odometer":100,
+                "instantPower":{"value":18.6,"unit":"kW"},
+                "motorCurrent":42.1,
+                "lat":55.7,"gpsLongitude":37.6,"VIN":"private"
+            }
+        }"""))
+        val raw = JSONObject(result.rawSensorsJson)
+        assertEquals(18.6, raw.getJSONObject("instantPower").getDouble("value"), 0.001)
+        assertEquals("kW", raw.getJSONObject("instantPower").getString("unit"))
+        assertEquals(42.1, raw.getDouble("motorCurrent"), 0.001)
+        assertFalse(raw.has("lat"))
+        assertFalse(raw.has("gpsLongitude"))
+        assertFalse(raw.has("VIN"))
+    }
+
     @Test fun rejectsSocAboveOneHundred() {
         assertThrows(IOException::class.java) {
             TelemetryParser.parse(JSONObject("""{"sensors":{"batteryPercentage":101,"odometer":100}}"""))

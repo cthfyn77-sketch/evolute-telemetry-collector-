@@ -5,7 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
+class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE snapshots(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,7 +29,8 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             ignition_on INTEGER,
             trunk_open INTEGER,
             signal_level REAL,
-            firmware_version TEXT
+            firmware_version TEXT,
+            raw_sensors_json TEXT NOT NULL DEFAULT '{}'
         )""")
         db.execSQL("CREATE INDEX idx_snapshots_captured ON snapshots(captured_at)")
     }
@@ -50,6 +51,9 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             db.execSQL("ALTER TABLE snapshots ADD COLUMN trunk_open INTEGER")
             db.execSQL("ALTER TABLE snapshots ADD COLUMN signal_level REAL")
             db.execSQL("ALTER TABLE snapshots ADD COLUMN firmware_version TEXT")
+        }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE snapshots ADD COLUMN raw_sensors_json TEXT NOT NULL DEFAULT '{}'")
         }
     }
 
@@ -76,6 +80,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             put("trunk_open", t.trunkOpen?.let { if (it) 1 else 0 })
             put("signal_level", t.signalLevel)
             put("firmware_version", t.firmwareVersion)
+            put("raw_sensors_json", t.rawSensorsJson)
         }
         writableDatabase.insertOrThrow("snapshots", null, v)
     }
@@ -126,12 +131,12 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     fun exportCsv(out: java.io.OutputStream) {
         out.writer(Charsets.UTF_8).use { w ->
-            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,battery_temp,voltage_12v,coolant_temp,outside_temp,cabin_temp,climate_target_temp,climate_fan_speed,charging_gun_inserted,parked,central_locking_on,ignition_on,trunk_open,signal_level,firmware_version\n")
+            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,battery_temp,voltage_12v,coolant_temp,outside_temp,cabin_temp,climate_target_temp,climate_fan_speed,charging_gun_inserted,parked,central_locking_on,ignition_on,trunk_open,signal_level,firmware_version,raw_sensors_json\n")
             readableDatabase.rawQuery(
                 """SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,
                     battery_temp,voltage_12v,coolant_temp,outside_temp,cabin_temp,
                     climate_target_temp,climate_fan_speed,charging_gun_inserted,
-                    parked,central_locking_on,ignition_on,trunk_open,signal_level,firmware_version
+                    parked,central_locking_on,ignition_on,trunk_open,signal_level,firmware_version,raw_sensors_json
                     FROM snapshots ORDER BY id""",
                 null
             ).use { c ->

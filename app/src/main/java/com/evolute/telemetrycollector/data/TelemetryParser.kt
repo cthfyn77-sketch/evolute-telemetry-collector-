@@ -1,10 +1,46 @@
 package com.evolute.telemetrycollector.data
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
 /** Validates and converts one raw read-only telemetry API response. */
 internal object TelemetryParser {
+    // Retain unknown sensor values for analysis, excluding GPS and vehicle/account identifiers.
+    private val excludedSensorKeys = setOf(
+        "lat", "lon", "lng", "latitude", "longitude",
+        "gpslat", "gpslon", "gpslng", "gpslatitude", "gpslongitude",
+        "imei", "vin", "carid", "vehicleid", "userid", "deviceid",
+        "token", "accesstoken", "refreshtoken", "sessionid"
+    )
+
+    private fun sanitizedSensorsJson(sensors: JSONObject): String {
+        fun clean(value: Any?): Any? = when (value) {
+            is JSONObject -> {
+                val safe = JSONObject()
+                val keys = value.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val normalized = key.lowercase().filter { it.isLetterOrDigit() }
+                    if (normalized in excludedSensorKeys) continue
+                    val item = value.opt(key)
+                    if (item != null && item != JSONObject.NULL) safe.put(key, clean(item))
+                }
+                safe
+            }
+            is JSONArray -> {
+                val safe = JSONArray()
+                for (i in 0 until value.length()) {
+                    val item = value.opt(i)
+                    safe.put(if (item == JSONObject.NULL) JSONObject.NULL else clean(item))
+                }
+                safe
+            }
+            else -> value
+        }
+        return (clean(sensors) as JSONObject).toString()
+    }
+
     fun parse(tel: JSONObject): ApiClient.Telemetry {
         val sensors = tel.optJSONObject("sensors")
             ?: throw IOException("В ответе нет sensors")
@@ -63,7 +99,8 @@ internal object TelemetryParser {
             trunkOpen = bool("trunkStatus"),
             signalLevel = nonNegative("signalLevel"),
             firmwareVersion = sensors.optString("firmwareVersion")
-                .takeIf { it.isNotBlank() && it != "null" }
+                .takeIf { it.isNotBlank() && it != "null" },
+            rawSensorsJson = sanitizedSensorsJson(sensors)
         )
     }
 }
