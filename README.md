@@ -46,3 +46,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 могут остановить службу из-за ограничений фоновой работы или энергосбережения; для
 длительного сбора следует разрешить приложению фоновую работу/неограниченное
 энергопотребление в настройках Android.
+
+
+## v130 — telemetry outage protection
+
+- Samples separated by more than three minutes are treated as a telemetry gap.
+- Range estimation starts a fresh SOC window after a gap; SOC and odometer changes are not interpolated across missing samples.
+- Trip reconstruction excludes intervals spanning a telemetry outage rather than inventing trip duration or SOC consumption.
+- The dashboard reports stale server timestamps and identifies a recovered, synchronized connection.
+- Battery SOH changes are accepted only after three consistent readings; isolated spikes remain unconfirmed.
+- Release version: 0.7.0 (versionCode 7).
