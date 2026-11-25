@@ -53,4 +53,13 @@ class SnapshotDbTest {
         assertEquals(0L, db.count())
         assertEquals("Пока нет записей", db.latest())
     }
+    @Test fun keepsServerUpdateTimeInAllSnapshotViews() {
+        val serverTime = "2026-11-26T08:15:00Z"
+        db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, serverTime))
+
+        assertEquals(serverTime, db.latestSnapshot()?.apiUpdatedAt)
+        assertEquals(serverTime, db.recentSnapshots().single().apiUpdatedAt)
+        assertEquals(serverTime, db.allSnapshots().single().apiUpdatedAt)
+    }
+
 }
