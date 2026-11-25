@@ -151,18 +151,19 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
                     }
                     if (values.size == 5) values else null
                 }
-                if (recent != null) {
+                if (recent != null && recent.average() > 0.0001) {
                     val average = recent.average()
-                    if (average > 0.0001) {
-                        val estimate = (socAtBoundary / average).coerceAtLeast(0.0)
-                        val values = ContentValues().apply {
-                            put("id", 1)
-                            put("range_km", estimate)
-                            put("consumption_per_km", average)
-                            put("updated_at_odometer", boundaryOdometer)
-                        }
-                        db.insertWithOnConflict("range_estimate", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                    val estimate = (socAtBoundary / average).coerceAtLeast(0.0)
+                    val values = ContentValues().apply {
+                        put("id", 1)
+                        put("range_km", estimate)
+                        put("consumption_per_km", average)
+                        put("updated_at_odometer", boundaryOdometer)
                     }
+                    db.insertWithOnConflict("range_estimate", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+                } else {
+                    // Do not keep showing a stale forecast after an invalid/charging interval.
+                    db.delete("range_estimate", null, null)
                 }
             }
         }
