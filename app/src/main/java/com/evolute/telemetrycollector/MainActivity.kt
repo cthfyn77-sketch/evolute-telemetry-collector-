@@ -23,6 +23,7 @@ class MainActivity : Activity() {
     private lateinit var code: EditText
     private lateinit var status: TextView
     private lateinit var actionStatus: TextView
+    private var proSensors: TextView? = null
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -60,7 +61,7 @@ class MainActivity : Activity() {
         }
 
         root.addView(TextView(this).apply {
-            text = "Evolute Telemetry Collector"
+            text = if (BuildConfig.FLAVOR == "pro") "Evolute Telemetry Collector Pro" else "Evolute Telemetry Collector"
             textSize = 23f
         })
         label("Авторизация Evolute")
@@ -101,6 +102,19 @@ class MainActivity : Activity() {
         label("Состояние сбора (обновляется автоматически)")
         status = TextView(this).apply { textSize = 14f }
         root.addView(status)
+        if (BuildConfig.FLAVOR == "pro") {
+            label("PRO · Исследование дополнительных датчиков")
+            root.addView(TextView(this).apply {
+                text = "Ниже отображаются реальные поля последнего ответа API, которые ещё не сопоставлены с отдельными показателями. Ищем подтверждённые поля мощности, тока и высоковольтного напряжения; названия и единицы не угадываются."
+                textSize = 13f
+            })
+            proSensors = TextView(this).apply {
+                textSize = 12f
+                typeface = android.graphics.Typeface.MONOSPACE
+                setTextIsSelectable(true)
+            }
+            root.addView(proSensors)
+        }
         label("Результат последнего действия")
         actionStatus = TextView(this).apply { textSize = 14f }
         root.addView(actionStatus)
@@ -149,6 +163,9 @@ class MainActivity : Activity() {
     private suspend fun updateStatus() {
         try {
             status.text = withContext(Dispatchers.IO) { statusText() }
+            if (BuildConfig.FLAVOR == "pro") {
+                proSensors?.text = withContext(Dispatchers.IO) { SnapshotDb.get(this@MainActivity).latestRawSensors() }
+            }
         } catch (e: Exception) {
             status.text = "Ошибка чтения статуса: ${e.message ?: e.javaClass.simpleName}"
         }

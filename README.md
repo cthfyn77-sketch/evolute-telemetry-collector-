@@ -1,5 +1,11 @@
 # Evolute Telemetry Collector
 
+## Editions
+- Standard: package `com.evolute.telemetrycollector`.
+- Pro: separate installable app, package `com.evolute.telemetrycollector.pro`, with a live panel showing the latest sanitized raw sensor JSON for discovering power/current/high-voltage fields.
+- Both editions use the same read-only collector and local database schema; neither sends vehicle-control commands.
+- APK workflow tests and builds both editions separately.
+
 Отдельное Android-приложение для локального сбора телеметрии Evolute.
 
 ## Возможности

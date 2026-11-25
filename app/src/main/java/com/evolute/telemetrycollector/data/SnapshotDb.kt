@@ -85,6 +85,19 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         writableDatabase.insertOrThrow("snapshots", null, v)
     }
 
+    /** Latest sanitized raw sensor object, used by the Pro field-discovery panel. */
+    fun latestRawSensors(): String = readableDatabase.rawQuery(
+        "SELECT raw_sensors_json FROM snapshots ORDER BY id DESC LIMIT 1",
+        null
+    ).use { c ->
+        if (!c.moveToFirst()) return "Пока нет данных"
+        try {
+            org.json.JSONObject(c.getString(0)).toString(2)
+        } catch (_: Exception) {
+            "Последний пакет датчиков не удалось разобрать"
+        }
+    }
+
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM snapshots", null).use {
         it.moveToFirst()
         it.getLong(0)
