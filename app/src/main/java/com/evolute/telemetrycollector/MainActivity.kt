@@ -45,6 +45,7 @@ class MainActivity : Activity() {
     private lateinit var odometerValue: TextView
     private lateinit var batteryMetricsValue: TextView
     private lateinit var batteryHistoryValue: TextView
+    private lateinit var batteryHistoryCharts: LinearLayout
     private lateinit var apiFieldsValue: TextView
     private lateinit var apiFieldsCard: LinearLayout
     private lateinit var sensorReadingsContent: LinearLayout
@@ -301,6 +302,9 @@ class MainActivity : Activity() {
         batteryHistoryValue = text("Ожидание истории батареи", 10f, white)
         batteryHistoryValue.setLineSpacing(dp(2).toFloat(), 1f)
         batteryHistoryCard.addView(batteryHistoryValue)
+        addGap(batteryHistoryCard, 10)
+        batteryHistoryCharts = column()
+        batteryHistoryCard.addView(batteryHistoryCharts)
         content.addView(batteryHistoryCard)
 
         addGap(content, 10)
@@ -535,6 +539,7 @@ class MainActivity : Activity() {
         if (snapshotCount != lastBatteryHistoryRecordCount) {
             val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
             batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
+            renderBatteryMetricCharts(batteryHistory.metrics)
             lastBatteryHistoryRecordCount = snapshotCount
         }
         batteryMetricsValue.text = if (latest != null) {
@@ -551,14 +556,45 @@ class MainActivity : Activity() {
             renderTripHistory(db.allSnapshots())
             lastTripHistoryRecordCount = snapshotCount
         }
-        val snapshots = db.recentSnapshots(240)
-        val hasTimeHistory = snapshots.size >= 2
-        val hasDistanceHistory = hasTimeHistory &&
-            (snapshots.maxOf { it.odometer } - snapshots.minOf { it.odometer }) > 0.001
-        distanceChartCard.visibility = if (hasDistanceHistory) View.VISIBLE else View.GONE
-        timeChartCard.visibility = if (hasTimeHistory) View.VISIBLE else View.GONE
-        distanceChart.setSnapshots(snapshots)
-        timeChart.setSnapshots(snapshots)
+        // Mileage chart spans previous trips too; parking never hides its card.
+        val mileageHistory = db.allSnapshots(20000)
+        val recentHistory = db.recentSnapshots(240)
+        distanceChartCard.visibility = View.VISIBLE
+        timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
+        distanceChart.setSnapshots(mileageHistory)
+        timeChart.setSnapshots(recentHistory)
+    }
+
+
+    private fun renderBatteryMetricCharts(metrics: List<BatteryHistoryAnalyzer.MetricHistory>) {
+        batteryHistoryCharts.removeAllViews()
+        if (metrics.isEmpty()) {
+            batteryHistoryCharts.addView(text(
+                "Графики появятся, когда EVACONNECT передаст числовые значения напряжения, тока, температуры или SOH.",
+                10f, muted
+            ))
+            return
+        }
+        metrics.take(8).forEachIndexed { index, metric ->
+            if (index > 0) addGap(batteryHistoryCharts, 12)
+            batteryHistoryCharts.addView(text(metric.path, 10f, accent, true))
+            addGap(batteryHistoryCharts, 3)
+            val summary = text(
+                "Сейчас " + String.format(java.util.Locale.US, "%.2f", metric.latest) +
+                    " · мин " + String.format(java.util.Locale.US, "%.2f", metric.min) +
+                    " · макс " + String.format(java.util.Locale.US, "%.2f", metric.max) +
+                    " · " + metric.samples + " замеров",
+                9f, muted
+            )
+            batteryHistoryCharts.addView(summary)
+            addGap(batteryHistoryCharts, 3)
+            val chart = BatteryMetricChartView(this).apply { setPoints(metric.points) }
+            batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(112)))
+        }
+        if (metrics.size > 8) {
+            addGap(batteryHistoryCharts, 6)
+            batteryHistoryCharts.addView(text("Ещё " + (metrics.size - 8) + " параметров доступны в текстовой сводке выше.", 9f, muted))
+        }
     }
 
     private fun renderTripHistory(history: List<com.evolute.telemetrycollector.data.TelemetrySnapshot>) {
