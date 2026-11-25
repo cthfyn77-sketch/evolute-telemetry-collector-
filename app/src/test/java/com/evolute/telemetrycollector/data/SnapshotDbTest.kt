@@ -40,13 +40,13 @@ class SnapshotDbTest {
     }
 
     @Test fun smoothsPerKilometreConsumptionAndPublishesEstimateAtFiveKm() {
-        db.insert(ApiClient.Telemetry(100.0, 0.0, 300.0, true, true, null))
+        db.insert(ApiClient.Telemetry(100.0, 0.4, 300.0, true, true, null))
         for (km in 1..4) {
-            db.insert(ApiClient.Telemetry(100.0 - km, km.toDouble(), 300.0, true, true, null))
+            db.insert(ApiClient.Telemetry(100.0 - km, 0.4 + km, 300.0, true, true, null))\n            // Stationary 30-second polls must not clear the kilometre history.\n            db.insert(ApiClient.Telemetry(100.0 - km, 0.4 + km, 300.0, true, true, null))
         }
 
         assertTrue(db.latest().contains("Расчётный запас: накопление данных"))
-        db.insert(ApiClient.Telemetry(95.0, 5.0, 280.0, true, true, null))
+        db.insert(ApiClient.Telemetry(95.0, 5.4, 280.0, true, true, null))
 
         val latest = db.latest()
         assertTrue(latest.contains("Расчётный запас: 95.0 км"))
