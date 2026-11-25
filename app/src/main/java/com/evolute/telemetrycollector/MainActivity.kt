@@ -43,6 +43,10 @@ class MainActivity : Activity() {
     private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
     private lateinit var apiFieldsValue: TextView
+    private lateinit var apiFieldsCard: LinearLayout
+    private lateinit var sensorReadingsContent: LinearLayout
+    private lateinit var sensorToggleButton: TextView
+    private var sensorReadingsVisible = true
     private lateinit var recordValue: TextView
     private lateinit var connectionValue: TextView
     private lateinit var chart: TelemetryChartView
@@ -137,6 +141,8 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
+        sensorReadingsVisible = getSharedPreferences("collector_ui", MODE_PRIVATE)
+            .getBoolean("sensor_readings_visible", true)
         val content = column().apply { setPadding(dp(18), dp(22), dp(18), dp(28)) }
         content.addView(row().apply {
             addView(text("EV", 24f, accent, true))
@@ -249,14 +255,25 @@ class MainActivity : Activity() {
         content.addView(odoCard)
 
         addGap(content, 10)
-        val apiFieldsCard = card()
-        apiFieldsCard.addView(text("ДОСТУПНЫЕ ПОЛЯ API", 11f, white, true))
-        addGap(apiFieldsCard, 5)
-        apiFieldsCard.addView(text("Полный ответ evaconnect · идентификаторы и токены скрыты", 9f, muted))
-        addGap(apiFieldsCard, 8)
+        apiFieldsCard = card()
+        apiFieldsCard.addView(row().apply {
+            addView(text("ТЕХНИЧЕСКИЕ ДАТЧИКИ", 11f, white, true),
+                LinearLayout.LayoutParams(0, -2, 1f))
+            sensorToggleButton = actionButton(
+                if (sensorReadingsVisible) "СКРЫТЬ" else "ПОКАЗАТЬ",
+                surface2, accent
+            ) { toggleSensorReadings() }
+            addView(sensorToggleButton, LinearLayout.LayoutParams(-2, -2))
+        })
+        sensorReadingsContent = column()
+        sensorReadingsContent.visibility = if (sensorReadingsVisible) View.VISIBLE else View.GONE
+        addGap(sensorReadingsContent, 5)
+        sensorReadingsContent.addView(text("Полный ответ evaconnect · идентификаторы и токены скрыты", 9f, muted))
+        addGap(sensorReadingsContent, 8)
         apiFieldsValue = text("Ожидание первой телеметрии", 10f, white)
         apiFieldsValue.setLineSpacing(dp(2).toFloat(), 1f)
-        apiFieldsCard.addView(apiFieldsValue)
+        sensorReadingsContent.addView(apiFieldsValue)
+        apiFieldsCard.addView(sensorReadingsContent)
         content.addView(apiFieldsCard)
 
         addGap(content, 12)
@@ -319,6 +336,15 @@ class MainActivity : Activity() {
         window.decorView.systemUiVisibility = 0
         setContentView(scroll)
         refreshStatus()
+    }
+
+    private fun toggleSensorReadings() {
+        sensorReadingsVisible = !sensorReadingsVisible
+        sensorReadingsContent.visibility = if (sensorReadingsVisible) View.VISIBLE else View.GONE
+        sensorToggleButton.text = if (sensorReadingsVisible) "СКРЫТЬ" else "ПОКАЗАТЬ"
+        getSharedPreferences("collector_ui", MODE_PRIVATE).edit()
+            .putBoolean("sensor_readings_visible", sensorReadingsVisible)
+            .apply()
     }
 
     private fun edit(hintText: String, input: Int) = EditText(this).apply {
