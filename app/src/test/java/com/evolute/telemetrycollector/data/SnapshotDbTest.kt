@@ -39,6 +39,21 @@ class SnapshotDbTest {
         assertTrue(latest.contains("Онлайн: true; готовность: false"))
     }
 
+    @Test fun smoothsPerKilometreConsumptionAndPublishesEstimateAtFiveKm() {
+        db.insert(ApiClient.Telemetry(100.0, 0.0, 300.0, true, true, null))
+        for (km in 1..4) {
+            db.insert(ApiClient.Telemetry(100.0 - km, km.toDouble(), 300.0, true, true, null))
+        }
+
+        assertTrue(db.latest().contains("Расчётный запас: накопление данных"))
+        db.insert(ApiClient.Telemetry(95.0, 5.0, 280.0, true, true, null))
+
+        val latest = db.latest()
+        assertTrue(latest.contains("Расчётный запас: 95.0 км"))
+        assertTrue(latest.contains("сглаженный расход 1.000%/км"))
+        assertTrue(latest.contains("Штатный запас: 280.0 км"))
+    }
+
     @Test fun exportsStoredRowsAsCsv() {
         db.insert(ApiClient.Telemetry(50.0, 1000.0, null, false, true, null))
         val output = ByteArrayOutputStream()
