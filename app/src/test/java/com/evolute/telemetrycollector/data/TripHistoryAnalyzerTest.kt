@@ -63,6 +63,21 @@ class TripHistoryAnalyzerTest {
             sample(10, 80.0, 1010.0),
             sample(11, 79.5, 1010.6),
             sample(12, 79.0, 1011.0),
+            sample(13, 79.0, 1011.0),
+            sample(14, 79.0, 1011.0),
+            sample(15, 79.0, 1011.0),
+            sample(16, 79.0, 1011.0),
+            sample(17, 79.0, 1011.0),
+            sample(18, 79.0, 1011.0),
+            sample(19, 79.0, 1011.0),
+            sample(20, 79.0, 1011.0),
+            sample(21, 79.0, 1011.0),
+            sample(22, 79.0, 1011.0),
+            sample(23, 79.0, 1011.0),
+            sample(24, 79.0, 1011.0),
+            sample(25, 79.0, 1011.0),
+            sample(26, 79.0, 1011.0),
+            sample(27, 79.0, 1011.0),
             sample(28, 79.0, 1011.0)
         ))
         assertEquals(1, trips.size)
