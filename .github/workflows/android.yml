@@ -1,4 +1,4 @@
-name: Android APK (v133 release)
+name: Android APK (v134 release)
 
 on:
   push:
@@ -83,6 +83,6 @@ jobs:
       - name: Upload signed release APK
         uses: actions/upload-artifact@v4
         with:
-          name: evolute-telemetry-collector-v133-release
+          name: evolute-telemetry-collector-v134-release
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
