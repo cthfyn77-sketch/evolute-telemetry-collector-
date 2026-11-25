@@ -29,7 +29,9 @@ internal object RangeEstimator {
     fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
         if (history.size < 2) return null
         val ordered = chronological(history)
-        val checkpoints = mutableListOf<Pair<Double, Double>>()
+        // Keep the first observed SOC as the baseline, so five driven kilometres
+        // produce six boundary points (start + km 1..5).
+        val checkpoints = mutableListOf(ordered.first().odometer to ordered.first().soc)
         var nextCheckpoint = kotlin.math.floor(ordered.first().odometer + EPSILON) + STEP_KM
 
         for (index in 1 until ordered.size) {
