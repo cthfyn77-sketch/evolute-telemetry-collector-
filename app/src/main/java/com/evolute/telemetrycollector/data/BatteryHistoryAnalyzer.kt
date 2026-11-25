@@ -11,7 +11,14 @@ import kotlin.math.max
 /** Read-only history view over sensor JSON already stored in snapshots. */
 internal object BatteryHistoryAnalyzer {
     data class MetricPoint(val at: Instant, val value: Double)
-    data class MetricHistory(val path: String, val latest: Double, val min: Double, val max: Double, val samples: Int)
+    data class MetricHistory(
+        val path: String,
+        val latest: Double,
+        val min: Double,
+        val max: Double,
+        val samples: Int,
+        val points: List<MetricPoint>
+    )
     data class Report(val metrics: List<MetricHistory>, val alerts: List<String>)
     private val terms = listOf("voltage", "volt", "temperature", "temp", "soh", "stateofhealth", "batteryhealth", "current", "amp")
 
@@ -22,7 +29,7 @@ internal object BatteryHistoryAnalyzer {
             extract(sample.sensorsJson).forEach { (path, value) -> points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value)) }
         }
         val metrics = points.mapNotNull { (path, values) ->
-            if (values.isEmpty()) null else MetricHistory(path, values.last().value, values.minOf { it.value }, values.maxOf { it.value }, values.size)
+            if (values.isEmpty()) null else MetricHistory(path, values.last().value, values.minOf { it.value }, values.maxOf { it.value }, values.size, values.toList())
         }.sortedBy { it.path.lowercase(Locale.ROOT) }
         val alerts = mutableListOf<String>()
         points.forEach { (path, values) ->
