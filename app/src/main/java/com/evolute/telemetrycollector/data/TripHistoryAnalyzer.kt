@@ -20,6 +20,7 @@ internal object TripHistoryAnalyzer {
     private const val MOVEMENT_EPSILON_KM = 0.02
     private const val MIN_TRIP_DISTANCE_KM = 0.5
     private const val STOP_GAP_MILLIS = 15 * 60 * 1000L
+    private const val TELEMETRY_GAP_MILLIS = 3 * 60 * 1000L
 
     fun analyze(history: List<TelemetrySnapshot>): List<TripSummary> {
         if (history.size < 2) return emptyList()
@@ -50,6 +51,15 @@ internal object TripHistoryAnalyzer {
         for (index in 1 until ordered.size) {
             val (previousAt, previous) = ordered[index - 1]
             val (currentAt, current) = ordered[index]
+
+            // Never infer a precise trip segment or SOC consumption across a telemetry outage.
+            // Discard the incomplete segment and use the recovered sample as a new baseline.
+            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS) {
+                active = null
+                lastMovementAt = 0L
+                continue
+            }
+
             if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
 
             val delta = current.odometer - previous.odometer
