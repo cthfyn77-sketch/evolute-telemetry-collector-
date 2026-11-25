@@ -16,7 +16,9 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.evolute.telemetrycollector.data.ApiClient
+import com.chaquo.python.Python
+import com.chaquo.python.android.AndroidPlatform
+import java.io.IOException
 import com.evolute.telemetrycollector.data.KeystoreTokenStore
 import com.evolute.telemetrycollector.data.SnapshotDb
 import kotlinx.coroutines.*
@@ -107,12 +109,12 @@ class MainActivity : Activity() {
         auth.addView(country); addGap(auth, 8)
         auth.addView(code); addGap(auth, 12)
         auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
-            runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
+            runTask { evaconnectAuth("request_otp", phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
         })
         addGap(auth, 8)
         auth.addView(actionButton("ВОЙТИ И ОТКРЫТЬ ПРИЛОЖЕНИЕ", accent, bg) {
             runTask {
-                ApiClient(store).signIn(phone.text.toString(), code.text.toString())
+                evaconnectAuth("sign_in", phone.text.toString(), code.text.toString())
                 withContext(Dispatchers.Main) {
                     buildUi()
                     requestNotificationPermission()
@@ -161,12 +163,12 @@ class MainActivity : Activity() {
             auth.addView(country); addGap(auth, 8)
             auth.addView(code); addGap(auth, 12)
             auth.addView(actionButton("ЗАПРОСИТЬ SMS-КОД", surface2, white) {
-                runTask { ApiClient(store).requestOtp(phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
+                runTask { evaconnectAuth("request_otp", phone.text.toString(), country.text.toString()); "SMS-код отправлен" }
             })
             addGap(auth, 8)
             auth.addView(actionButton("ВОЙТИ", accent, bg) {
                 runTask {
-                    ApiClient(store).signIn(phone.text.toString(), code.text.toString())
+                    evaconnectAuth("sign_in", phone.text.toString(), code.text.toString())
                     withContext(Dispatchers.Main) {
                         buildUi()
                         requestNotificationPermission()
@@ -336,6 +338,31 @@ class MainActivity : Activity() {
             setOnClickListener { action() }
             minHeight = dp(48)
         }
+
+
+    /** All account authentication is delegated to the vendored EVACONNECT Python client. */
+    private fun evaconnectAuth(action: String, phoneNumber: String, value: String) {
+        if (!Python.isStarted()) Python.start(AndroidPlatform(applicationContext))
+        val module = Python.getInstance().getModule("evaconnect_bridge")
+        val raw = when (action) {
+            "request_otp" -> module.callAttr("request_otp", phoneNumber, value).toString()
+            "sign_in" -> module.callAttr("sign_in", phoneNumber, value).toString()
+            else -> throw IOException("Неизвестная операция авторизации")
+        }
+        val result = JSONObject(raw)
+        if (!result.optBoolean("ok", false)) {
+            throw IOException(result.optString("error", "EVACONNECT: ошибка авторизации"))
+        }
+        if (action == "sign_in") {
+            val access = result.optString("access_token")
+            val refresh = result.optString("refresh_token")
+            if (access.isBlank() || refresh.isBlank()) throw IOException("EVACONNECT не вернул полную пару токенов")
+            store.save(ApiClient.Tokens(access, refresh,
+                result.optString("user_id").takeIf { it.isNotBlank() },
+                result.optString("user_token").takeIf { it.isNotBlank() },
+                result.optString("widget_id").takeIf { it.isNotBlank() }))
+        }
+    }
 
     private fun runTask(block: suspend () -> String) {
         scope.launch {
