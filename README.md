@@ -80,3 +80,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - The time chart retains highlighting for stationary charging sessions; the distance chart is shown once odometer movement is present.
 - Both charts use the same latest 240 locally stored snapshots. Telemetry collection, range estimation, gap handling and battery-history analysis are unchanged.
 - Release version: 0.10.0 (versionCode 10).
+
+
+## v134 — graphical battery dashboard and complete mileage history
+
+- Keeps the SOC-versus-odometer card visible during parking and plots the full local mileage history (up to 20,000 snapshots), collapsing repeated stationary samples.
+- The SOC-versus-time chart remains based on the latest 240 snapshots.
+- Adds individual history plots for numeric battery voltage, current, temperature and SOH sensor fields actually supplied by EVACONNECT, with current/min/max values and sample counts.
+- Battery metric plots use the existing four-hour (480 snapshot) analysis window. Existing collection, range estimation, telemetry-gap handling and SOH confirmation logic are unchanged.
+- Release version: 0.11.0 (versionCode 11).
