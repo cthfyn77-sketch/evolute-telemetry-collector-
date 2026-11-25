@@ -61,7 +61,7 @@ internal object TripHistoryAnalyzer {
                 finishTrip()
             }
         }
-        finishTrip()
+        if (active != null && ordered.last().first - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
         return trips.sortedByDescending {
             try { Instant.parse(it.startedAt) } catch (_: Exception) { Instant.EPOCH }
         }
