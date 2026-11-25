@@ -14,6 +14,16 @@ internal object RangeEstimator {
     private const val WINDOW_KM = 5.0
     private const val EPSILON = 0.0001
     private const val CHARGE_RISE_SOC = 0.2
+    private const val TELEMETRY_GAP_MILLIS = 3 * 60 * 1000L
+
+    private fun isTelemetryGap(previous: TelemetrySnapshot, current: TelemetrySnapshot): Boolean {
+        return try {
+            val elapsed = java.time.Duration.between(
+                java.time.Instant.parse(previous.capturedAt), java.time.Instant.parse(current.capturedAt)
+            ).toMillis()
+            elapsed > TELEMETRY_GAP_MILLIS
+        } catch (_: Exception) { false }
+    }
 
     fun estimate(history: List<TelemetrySnapshot>): Double? = metrics(history)?.estimatedRangeKm
     fun consumptionPer100Km(history: List<TelemetrySnapshot>): Double? = metrics(history)?.consumptionPercentPer100Km
@@ -38,6 +48,15 @@ internal object RangeEstimator {
             val previous = ordered[index - 1]
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
+
+            // A long collection gap makes interpolation unsafe: the car may have moved
+            // while no samples were recorded. Start a fresh window at the first new sample.
+            if (isTelemetryGap(previous, current)) {
+                checkpoints.clear()
+                checkpoints.add(current.odometer to current.soc)
+                nextCheckpoint = kotlin.math.floor(current.odometer + EPSILON) + STEP_KM
+                continue
+            }
 
             // Charging is identified only when SOC rises while odometer remains stationary.
             // Drop all pre-charge checkpoints so a 5-km window cannot span a charge session.
