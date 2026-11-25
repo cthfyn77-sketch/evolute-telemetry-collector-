@@ -36,6 +36,16 @@ class TripHistoryAnalyzerTest {
         assertEquals(1.0, trips[1].distanceKm, 0.001)
     }
 
+    @Test fun doesNotShowAnOngoingDriveAsCompleted() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.6),
+            sample(2, 89.0, 1001.0),
+            sample(10, 88.0, 1002.0)
+        ))
+        assertTrue(trips.isEmpty())
+    }
+
     @Test fun ignoresShortOdometerNoise() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
