@@ -99,8 +99,9 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(TelemetrySnapshot(
-                c.getString(0), c.getDouble(1), c.getDouble(2),
-                if (c.isNull(3)) null else c.getDouble(3), c.getInt(4) == 1, c.getInt(5) == 1, c.getString(6)
+                c.getString(0), c.getDouble(2), c.getDouble(3),
+                if (c.isNull(4)) null else c.getDouble(4), c.getInt(5) == 1, c.getInt(6) == 1,
+                c.getString(7), if (c.isNull(1)) null else c.getString(1)
             ))
             rows.reverse()
             rows
