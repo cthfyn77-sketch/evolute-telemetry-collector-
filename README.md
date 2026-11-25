@@ -56,3 +56,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - The dashboard reports stale server timestamps and identifies a recovered, synchronized connection.
 - Battery SOH changes are accepted only after three consistent readings; isolated spikes remain unconfirmed.
 - Release version: 0.7.0 (versionCode 7).
+
+## v131 — battery history and telemetry quality
+
+- Adds a local read-only history summary for numeric battery voltage, current, temperature and SOH sensor fields already present in stored sensor JSON.
+- Shows latest value, observed range and sample count without assuming or converting API units.
+- Flags isolated one-sample spikes only when the following sample returns near the prior value; intervals spanning more than three minutes are not connected.
+- Alerts are telemetry-quality hints, not vehicle fault diagnoses. No vehicle commands or remote services are added.
+- Release version: 0.8.0 (versionCode 8).
