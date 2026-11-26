@@ -59,6 +59,12 @@ class CollectorService : Service() {
                             tokenStore.save(saved.copy(access = access, refresh = refresh))
                         }
 
+                        if (result.optBoolean("auth_required", false)) {
+                            updateNotification("Требуется повторный вход в EVACONNECT")
+                            stopSelf()
+                            return@launch
+                        }
+
                         if (!result.optBoolean("ok", false)) {
                             throw IOException(result.optString("error", "evaconnect не вернул телеметрию"))
                         }
