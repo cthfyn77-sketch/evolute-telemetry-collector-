@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from evaconnect.auth import TokenStore
 from evaconnect.client import EvoluteClient
+from evaconnect.errors import EvoluteAuthError
 import re
 
 
@@ -124,7 +125,7 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
         if status is not None and f"HTTP {status}" not in message:
             message = f"{message} (HTTP {status})"
         error = message[:180]
-        payload = {"ok": False, "error": error}
+        payload = {"ok": False, "error": error, "auth_required": isinstance(exc, EvoluteAuthError)}
     payload["access_token"] = store.access_token or ""
     payload["refresh_token"] = store.refresh_token or ""
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
