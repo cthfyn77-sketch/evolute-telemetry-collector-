@@ -217,3 +217,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds regression tests for quoted values, embedded quotes, line breaks, and JSON sensor data.
 - Does not change stored snapshots, telemetry collection, charging-session reconstruction, trip analytics, or range estimation.
 - Release version: 0.28.0 (versionCode 28).
+
+
+## v156 — UTF-8 CSV compatibility
+
+- Prefixes CSV exports with the UTF-8 byte-order mark (BOM) so spreadsheet applications such as Excel can recognize Cyrillic text correctly.
+- Keeps RFC 4180 field escaping, CRLF record separators, column order, and stored telemetry unchanged.
+- Adds a regression test that verifies the UTF-8 BOM before the CSV header.
+- Release version: 0.29.0 (versionCode 29).
