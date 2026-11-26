@@ -11,6 +11,7 @@ import kotlin.math.max
 /** Small time-series plot for one numeric battery sensor supplied by EVACONNECT. */
 internal class BatteryMetricChartView(context: Context) : View(context) {
     private var points: List<BatteryHistoryAnalyzer.MetricPoint> = emptyList()
+    private var mileageAxis = false
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = android.graphics.Color.rgb(91, 218, 193)
         style = Paint.Style.STROKE
@@ -34,7 +35,15 @@ internal class BatteryMetricChartView(context: Context) : View(context) {
     private fun dp(value: Float) = value * resources.displayMetrics.density
 
     fun setPoints(next: List<BatteryHistoryAnalyzer.MetricPoint>) {
+        mileageAxis = false
         points = next.takeLast(480)
+        invalidate()
+    }
+
+    fun setMileagePoints(next: List<BatteryHistoryAnalyzer.MetricPoint>) {
+        mileageAxis = true
+        points = next.filter { it.odometer != null && it.odometer.isFinite() && it.odometer >= 0.0 }
+            .takeLast(480)
         invalidate()
     }
 
@@ -52,8 +61,10 @@ internal class BatteryMetricChartView(context: Context) : View(context) {
         val span = max(maxValue - minValue, max(kotlin.math.abs(maxValue) * 0.01, 0.1))
         val low = minValue - span * 0.08
         val high = maxValue + span * 0.08
-        val timeStart = points.first().at.toEpochMilli()
-        val timeSpan = max(1L, points.last().at.toEpochMilli() - timeStart)
+        val xValues = if (mileageAxis) points.mapNotNull { it.odometer } else points.map { it.at.toEpochMilli().toDouble() }
+        if (xValues.size != points.size || xValues.size < 2) return
+        val xStart = xValues.first()
+        val xSpan = max(xValues.last() - xStart, 0.001)
 
         for (i in 0..2) {
             val fraction = i / 2f
@@ -66,15 +77,16 @@ internal class BatteryMetricChartView(context: Context) : View(context) {
 
         val path = Path()
         points.forEachIndexed { index, point ->
-            val x = left + ((point.at.toEpochMilli() - timeStart).toDouble() / timeSpan).toFloat() * (right - left)
+            val xValue = if (mileageAxis) point.odometer ?: xStart else point.at.toEpochMilli().toDouble()
+            val x = left + ((xValue - xStart) / xSpan).toFloat() * (right - left)
             val y = bottom - ((point.value - low) / (high - low)).toFloat() * (bottom - top)
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
             if (index == points.lastIndex) canvas.drawCircle(x, y, dp(3f), dot)
         }
         canvas.drawPath(path, line)
         labels.textAlign = Paint.Align.LEFT
-        canvas.drawText("РАНЬШЕ", left, height - dp(4f), labels)
+        canvas.drawText(if (mileageAxis) String.format(java.util.Locale.US, "%.1f км", xStart) else "РАНЬШЕ", left, height - dp(4f), labels)
         labels.textAlign = Paint.Align.RIGHT
-        canvas.drawText("СЕЙЧАС", right, height - dp(4f), labels)
+        canvas.drawText(if (mileageAxis) String.format(java.util.Locale.US, "%.1f км", xStart + xSpan) else "СЕЙЧАС", right, height - dp(4f), labels)
     }
 }
