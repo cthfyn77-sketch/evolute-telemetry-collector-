@@ -46,7 +46,26 @@ class SnapshotDbTest {
         val csv = output.toString(Charsets.UTF_8.name())
 
         assertTrue(csv.startsWith("captured_at,api_updated_at,soc,odometer,stock_range,online,ready"))
-        assertTrue(csv.contains(Regex(",50(?:\\.0)?,1000(?:\\.0)?,,0,1")))
+        assertTrue(csv.contains(Regex(",50(?:\\\\.0)?,1000(?:\\\\.0)?,,0,1")))
+    }
+
+    @Test fun csvEscapingPreservesCommasQuotesAndLineBreaks() {
+        assertEquals("plain", csvField("plain"))
+        assertEquals("\\"sensor,value\\"", csvField("sensor,value"))
+        assertEquals("\\"sensor \\"\\"value\\"\\"\\"", csvField("sensor \\"value\\""))
+        assertEquals("\\"line one\\r\\nline two\\"", csvField("line one\\r\\nline two"))
+    }
+
+    @Test fun exportsSensorJsonAsOneCsvField() {
+        db.insert(ApiClient.Telemetry(
+            50.0, 1000.0, null, false, true, null,
+            """{"sensor":"value, with comma","note":"say \\"hi\\""}"""
+        ))
+        val output = ByteArrayOutputStream()
+        db.exportCsv(output)
+        val csv = output.toString(Charsets.UTF_8.name())
+
+        assertTrue(csv.contains("\\\"{\\\"sensor\\\":\\\"value, with comma\\\",\\\"note\\\":\\\"say \\\\\\\"hi\\\\\\\"\\\"}\\\""))
     }
 
     @Test fun recentSnapshotsHonorsAWindowLargerThanTwoHundredRows() {
@@ -61,6 +80,7 @@ class SnapshotDbTest {
         assertEquals(0L, db.count())
         assertEquals("Пока нет записей", db.latest())
     }
+
     @Test fun keepsServerUpdateTimeInAllSnapshotViews() {
         val serverTime = "2026-11-26T08:15:00Z"
         db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, serverTime))
@@ -69,5 +89,4 @@ class SnapshotDbTest {
         assertEquals(serverTime, db.recentSnapshots().single().apiUpdatedAt)
         assertEquals(serverTime, db.allSnapshots().single().apiUpdatedAt)
     }
-
 }
