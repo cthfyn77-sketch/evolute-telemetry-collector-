@@ -87,6 +87,25 @@ class TripHistoryAnalyzerTest {
     }
 
 
+    @Test fun doesNotJoinTripAcrossOutageWhenRecoveredOdometerIsUnchanged() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.6),
+            sample(2, 89.0, 1001.0),
+            // Telemetry returns after an outage, but odometer has not yet changed.
+            sample(10, 89.0, 1001.0),
+            sample(11, 88.5, 1001.5),
+            sample(12, 88.0, 1002.0),
+            sample(13, 88.0, 1002.0),
+            sample(28, 88.0, 1002.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
+        assertEquals("2026-11-26T10:10:00Z", trips[0].startedAt)
+    }
+
     @Test fun calculatesWeightedConsumptionFromTripsAtLeastOneKm() {
         val trips = listOf(
             TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 10.0, 600, 5.0),
