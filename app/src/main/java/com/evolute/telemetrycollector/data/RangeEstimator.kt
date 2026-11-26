@@ -29,7 +29,7 @@ internal object RangeEstimator {
     fun consumptionPer100Km(history: List<TelemetrySnapshot>): Double? = metrics(history)?.consumptionPercentPer100Km
 
     private fun chronological(history: List<TelemetrySnapshot>): List<TelemetrySnapshot> {
-        val parsed = history.mapNotNull { item ->
+        val parsed = OdometerSanitizer.sanitize(history).mapNotNull { item ->
             try { java.time.Instant.parse(item.capturedAt).toEpochMilli() to item } catch (_: Exception) { null }
         }
         return if (parsed.size == history.size && parsed.isNotEmpty()) parsed.sortedBy { it.first }.map { it.second }
