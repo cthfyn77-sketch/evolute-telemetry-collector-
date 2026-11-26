@@ -745,6 +745,26 @@ class MainActivity : Activity() {
             addGap(batteryHistoryCharts, 3)
             val chart = BatteryMetricChartView(this).apply { setPoints(metric.points) }
             batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(112)))
+            val metricKey = metric.path.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("[^a-z0-9]"), "")
+            if (metricKey.contains("soh") || metricKey.contains("stateofhealth") ||
+                metricKey.contains("batteryhealth")) {
+                val mileagePoints = metric.points.filter { it.odometer != null }
+                if (mileagePoints.mapNotNull { it.odometer }.distinct().size >= 2) {
+                    addGap(batteryHistoryCharts, 5)
+                    batteryHistoryCharts.addView(text("SOH · ИЗМЕНЕНИЕ ПО ПРОБЕГУ", 9f, muted, true))
+                    val mileageChart = BatteryMetricChartView(this).apply {
+                        setMileagePoints(mileagePoints)
+                    }
+                    batteryHistoryCharts.addView(mileageChart, LinearLayout.LayoutParams(-1, dp(112)))
+                } else {
+                    addGap(batteryHistoryCharts, 3)
+                    batteryHistoryCharts.addView(text(
+                        "График SOH по пробегу появится после накопления замеров на разных значениях одометра.",
+                        9f, muted
+                    ))
+                }
+            }
         }
         if (prioritized.size > 10) {
             addGap(batteryHistoryCharts, 6)
