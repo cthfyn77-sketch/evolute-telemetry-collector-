@@ -115,4 +115,21 @@ class RangeEstimatorTest {
         assertEquals(195.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
+
+
+    @Test fun doesNotReusePreOutageIntervalsBeforeFirstPostOutageKilometer() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T08:00:00Z", 100.0, 0.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:01:00Z", 99.5, 1.0, null, true, true, "{}"),
+            // Recovery after a long outage establishes a new baseline.
+            TelemetrySnapshot("2026-11-26T08:20:00Z", 80.0, 1.0, null, true, true, "{}"),
+            // Not enough post-recovery distance to complete a new 1-km interval.
+            TelemetrySnapshot("2026-11-26T08:25:00Z", 79.8, 1.5, null, true, true, "{}")
+        )
+
+        // The pre-outage 0.5%/km interval must not be reused after recovery.
+        assertNull(RangeEstimator.estimate(history))
+        assertNull(RangeEstimator.consumptionPer100Km(history))
+    }
+
 }
