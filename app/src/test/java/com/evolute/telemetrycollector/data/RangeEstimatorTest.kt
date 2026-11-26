@@ -147,4 +147,21 @@ class RangeEstimatorTest {
         assertEquals(45.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
+
+    @Test fun discardsSocIncreaseWhileDrivingWithoutBridgingIntervals() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T08:00:00Z", 80.0, 0.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:01:00Z", 79.5, 1.0, null, true, true, "{}"),
+            // SOC rises while moving: this kilometre is invalid and must not
+            // be averaged or combined with the following kilometre.
+            TelemetrySnapshot("2026-11-26T08:02:00Z", 80.5, 2.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:03:00Z", 80.1, 3.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:04:00Z", 79.7, 4.0, null, true, true, "{}")
+        )
+
+        // Only the two post-increase intervals (0.4%/km each) are valid.
+        assertEquals(199.25, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
 }
