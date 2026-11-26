@@ -563,7 +563,7 @@ class MainActivity : Activity() {
             listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
                 key.contains("enginetemperature") || key.contains("enginetemp") ->
                 "Температура ОЖ"
-            listOf("climate", "hvac", "ac").any { key.contains(it) } &&
+            listOf("climate", "hvac").any { key.contains(it) } &&
                 listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } ->
                 "Климат — заданная температура"
             listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
@@ -713,28 +713,66 @@ class MainActivity : Activity() {
     private fun formatApiFields(raw: String): String {
         return try {
             val root = JSONObject(raw)
-            val lines = mutableListOf<String>()
-            fun walk(value: Any?, path: String) {
-                if (lines.size >= 80) return
+            val fields = mutableListOf<String>()
+            fun walk(value: Any?, path: String, depth: Int) {
+                if (depth > 8 || fields.size >= 1000) return
                 when (value) {
                     is JSONObject -> {
                         val keys = value.keys()
-                        while (keys.hasNext() && lines.size < 80) {
+                        while (keys.hasNext() && fields.size < 1000) {
                             val key = keys.next()
-                            walk(value.opt(key), if (path.isEmpty()) key else path + "." + key)
+                            walk(value.opt(key), if (path.isEmpty()) key else path + "." + key, depth + 1)
                         }
                     }
                     is JSONArray -> {
-                        lines.add(path + ": [" + value.length() + " элементов]")
-                        for (i in 0 until minOf(value.length(), 10)) walk(value.opt(i), path + "[" + i + "]")
+                        fields.add(path + ": [" + value.length() + " элементов]")
+                        for (i in 0 until minOf(value.length(), 20)) {
+                            walk(value.opt(i), path + "[" + i + "]", depth + 1)
+                        }
                     }
-                    JSONObject.NULL -> lines.add(path + ": null")
-                    else -> lines.add(path + ": " + value.toString().take(180))
+                    JSONObject.NULL -> fields.add(path + ": null")
+                    else -> fields.add(path + ": " + value.toString().take(180))
                 }
             }
-            walk(root, "")
-            if (lines.isEmpty()) "API не вернул дополнительных полей"
-            else lines.joinToString("\n") + if (lines.size >= 80) "\n… список ограничен первыми 80 полями" else ""
+            walk(root, "", 0)
+            if (fields.isEmpty()) return "API не вернул дополнительных полей"
+
+            // Put likely chart/sensor fields first so the useful keys are not hidden
+            // when the response contains many command/button fields.
+            val sensorTerms = listOf(
+                "current", "amp", "amper", "voltage", "volt", "climate", "hvac",
+                "setpoint", "settemp", "targettemp", "desiredtemp", "airtemp",
+                "temperature", "temp", "coolant", "cabin", "interior", "ambient",
+                "outside", "soc", "soh", "battery"
+            )
+            val sensorFields = fields.filter { line ->
+                val key = line.substringBefore(":").lowercase(java.util.Locale.ROOT)
+                    .replace(Regex("[^a-zа-я0-9]"), "")
+                sensorTerms.any { key.contains(it) }
+            }
+            val otherFields = fields.filterNot { it in sensorFields }
+            val shownSensors = sensorFields.take(120)
+            val remainingSlots = (160 - shownSensors.size).coerceAtLeast(0)
+            val shownOthers = otherFields.take(remainingSlots)
+            buildString {
+                if (shownSensors.isNotEmpty()) {
+                    append("ПОЛЯ ДАТЧИКОВ И ГРАФИКОВ (сначала)\n")
+                    append(shownSensors.joinToString("\n"))
+                } else {
+                    append("Поля датчиков с распознаваемыми названиями пока не найдены.")
+                }
+                if (shownOthers.isNotEmpty()) {
+                    append("\n\nОСТАЛЬНЫЕ ПОЛЯ\n")
+                    append(shownOthers.joinToString("\n"))
+                }
+                if (fields.size > shownSensors.size + shownOthers.size) {
+                    append("\n… показано ")
+                    append(shownSensors.size + shownOthers.size)
+                    append(" из ")
+                    append(fields.size)
+                    append(" полей; датчики выведены в начало")
+                }
+            }
         } catch (_: Exception) {
             "Не удалось разобрать JSON телеметрии"
         }
