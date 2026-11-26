@@ -46,7 +46,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         writableDatabase.insertOrThrow("snapshots", null, v)
     }
 
-    /** Estimated range based on 1-km SOC checkpoints, smoothed over the last 10 km. */
+    /** Estimated range from complete 5-km SOC intervals, averaging the latest eight valid intervals. */
     private fun estimationHistory(): List<TelemetrySnapshot> = readableDatabase.rawQuery(
             "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC",
             null
