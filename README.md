@@ -181,3 +181,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - The chart uses locally stored snapshots and does not change telemetry collection, trip reconstruction, or raw history.
 - SOH remains sourced only from numeric SOH fields actually supplied by EVACONNECT.
 - Release version: 0.22.0 (versionCode 22).
+
+
+## v151 — trip speed analytics
+
+- Adds average speed for each completed trip, calculated from reconstructed trip distance and elapsed capture time.
+- Adds a distance/time-weighted average speed across completed trips.
+- Trips without a positive elapsed duration show no speed value; no speed is inferred from missing data.
+- Keeps trip boundaries, SOC consumption validation, the 1-km range estimator, telemetry collection and stored snapshots unchanged.
+- Maximum speed is not shown because the current verified telemetry mapping does not identify a trustworthy vehicle-speed sensor field.
+- Release version: 0.24.0 (versionCode 24).
