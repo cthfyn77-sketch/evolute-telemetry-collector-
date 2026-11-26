@@ -43,28 +43,47 @@ internal object BatteryHistoryAnalyzer {
                 points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc))
             }
         }
+        val alerts = mutableListOf<String>()
         val metrics = points.mapNotNull { (path, rawValues) ->
             val values = rawValues.sortedBy { it.at }
-            if (values.isEmpty()) null else MetricHistory(
-                path, values.last().value, values.minOf { it.value },
-                values.maxOf { it.value }, values.size, values.toList()
+            if (values.isEmpty()) return@mapNotNull null
+
+            // Exclude only a clearly isolated point that immediately returns to
+            // its previous level. Raw snapshots remain untouched in SQLite.
+            val rejected = isolatedSpikeIndexes(values)
+            rejected.forEach { index ->
+                val before = values[index - 1]
+                val spike = values[index]
+                val after = values[index + 1]
+                alerts.add(path + ": одиночный скачок " + fmt(spike.value) +
+                    " между " + fmt(before.value) + " и " + fmt(after.value) +
+                    " — исключён из графика как вероятная ошибка телеметрии")
+            }
+            val trusted = values.filterIndexed { index, _ -> index !in rejected }
+            val display = trusted.ifEmpty { values }
+            MetricHistory(
+                path, display.last().value, display.minOf { it.value },
+                display.maxOf { it.value }, display.size, display.toList()
             )
         }.sortedBy { it.path.lowercase(Locale.ROOT) }
-        val alerts = mutableListOf<String>()
-        points.forEach { (path, values) ->
-            for (i in 1 until values.lastIndex) {
-                val before = values[i - 1]; val spike = values[i]; val after = values[i + 1]
-                if (Duration.between(before.at, spike.at).toMinutes() > 3 || Duration.between(spike.at, after.at).toMinutes() > 3) continue
-                val baseline = before.value
-                val deviates = abs(spike.value - baseline) >= max(abs(baseline) * 0.20, 1.0)
-                val returns = abs(after.value - baseline) <= max(abs(baseline) * 0.05, 0.5)
-                if (deviates && returns) {
-                    alerts.add(path + ": одиночный скачок " + fmt(spike.value) + " между " + fmt(before.value) + " и " + fmt(after.value) + " — проверьте качество телеметрии")
-                    break
-                }
-            }
-        }
         return Report(metrics, alerts.take(8))
+    }
+
+    /** Indexes of short-lived outliers; never bridge a telemetry gap over 3 minutes. */
+    private fun isolatedSpikeIndexes(values: List<MetricPoint>): Set<Int> {
+        val rejected = linkedSetOf<Int>()
+        for (i in 1 until values.lastIndex) {
+            val before = values[i - 1]
+            val spike = values[i]
+            val after = values[i + 1]
+            if (Duration.between(before.at, spike.at).toMinutes() > 3 ||
+                Duration.between(spike.at, after.at).toMinutes() > 3) continue
+            val baseline = before.value
+            val deviates = abs(spike.value - baseline) >= max(abs(baseline) * 0.20, 1.0)
+            val returns = abs(after.value - baseline) <= max(abs(baseline) * 0.05, 0.5)
+            if (deviates && returns) rejected.add(i)
+        }
+        return rejected
     }
 
     fun render(report: Report): String {
