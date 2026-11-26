@@ -148,7 +148,7 @@ class RangeEstimatorTest {
     }
 
 
-    @Test fun discardsSocIncreaseWhileDrivingWithoutBridgingIntervals() {
+    @Test fun invalidatesRisingSocIntervalWithoutBridgingFollowingIntervals() {
         val history = listOf(
             TelemetrySnapshot("2026-11-26T08:00:00Z", 80.0, 0.0, null, true, true, "{}"),
             TelemetrySnapshot("2026-11-26T08:01:00Z", 79.5, 1.0, null, true, true, "{}"),
@@ -159,9 +159,11 @@ class RangeEstimatorTest {
             TelemetrySnapshot("2026-11-26T08:04:00Z", 79.7, 4.0, null, true, true, "{}")
         )
 
-        // Only the two post-increase intervals (0.4%/km each) are valid.
-        assertEquals(199.25, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        // The first 0.5% interval remains valid; the rising interval is discarded,
+        // and the next two intervals are independently measured at 0.4%/km.
+        // Average: (0.5 + 0.4 + 0.4) / 3 = 0.433333...%/km.
+        assertEquals(183.923077, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(43.333333, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
 }
