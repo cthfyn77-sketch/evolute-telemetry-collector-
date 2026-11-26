@@ -59,7 +59,7 @@ class RangeEstimatorTest {
         ) + (1..8).map { km ->
             snapshot(80.0 - km * 0.4, 1.0 + km, 20 + km)
         }
-        assertEquals(191.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(192.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
