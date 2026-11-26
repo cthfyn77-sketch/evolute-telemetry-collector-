@@ -57,6 +57,8 @@ class MainActivity : Activity() {
     private lateinit var vehicleStateValue: TextView
     private lateinit var climateSummaryValue: TextView
     private lateinit var dataFreshnessValue: TextView
+    private lateinit var distanceChart: TelemetryChartView
+    private lateinit var distanceChartCard: LinearLayout
     private lateinit var timeChart: TelemetryChartView
     private lateinit var timeChartCard: LinearLayout
     private lateinit var tripHistoryCard: LinearLayout
@@ -342,6 +344,16 @@ class MainActivity : Activity() {
         content.addView(apiFieldsCard)
 
         addGap(content, 12)
+        distanceChartCard = card()
+        distanceChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ПРОБЕГА", 11f, accent, true))
+        addGap(distanceChartCard, 5)
+        distanceChartCard.addView(text("Изменение заряда относительно одометра · вся сохранённая история", 9f, muted))
+        addGap(distanceChartCard, 8)
+        distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
+        distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
+        content.addView(distanceChartCard)
+
+        addGap(content, 12)
         timeChartCard = card()
         timeChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ВРЕМЕНИ", 11f, Color.rgb(96, 165, 250), true))
         addGap(timeChartCard, 5)
@@ -618,10 +630,14 @@ class MainActivity : Activity() {
             renderTripHistory(db.allSnapshots())
             lastTripHistoryRecordCount = snapshotCount
         }
-        // SOC history is shown over time; battery sensor charts remain independent.
+        // Keep time and mileage axes independent: time uses recent samples,
+        // distance uses the complete local history with parked samples collapsed.
         val recentHistory = db.recentSnapshots(240)
+        val mileageHistory = db.allSnapshots()
         timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
+        distanceChartCard.visibility = if (mileageHistory.size >= 2) View.VISIBLE else View.GONE
         timeChart.setSnapshots(recentHistory)
+        distanceChart.setSnapshots(mileageHistory)
     }
 
 
