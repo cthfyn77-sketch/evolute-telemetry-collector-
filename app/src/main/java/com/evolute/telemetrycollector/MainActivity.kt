@@ -61,6 +61,8 @@ class MainActivity : Activity() {
     private lateinit var timeChartCard: LinearLayout
     private lateinit var tripHistoryCard: LinearLayout
     private lateinit var tripHistoryValue: TextView
+    private lateinit var tripStatsValue: TextView
+    private lateinit var tripConsumptionChart: TripConsumptionChartView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
@@ -357,6 +359,15 @@ class MainActivity : Activity() {
             "По фактическим изменениям одометра и SOC · поездка завершается после 15 минут без движения",
             9f, muted
         ))
+        addGap(tripHistoryCard, 8)
+        tripStatsValue = text("Статистика появится после первых завершённых поездок", 10f, accent, true)
+        tripStatsValue.setLineSpacing(dp(3).toFloat(), 1f)
+        tripHistoryCard.addView(tripStatsValue)
+        addGap(tripHistoryCard, 8)
+        tripHistoryCard.addView(text("РАСХОД SOC ПО ПОЕЗДКАМ · % / 100 КМ", 9f, muted, true))
+        addGap(tripHistoryCard, 4)
+        tripConsumptionChart = TripConsumptionChartView(this)
+        tripHistoryCard.addView(tripConsumptionChart, LinearLayout.LayoutParams(-1, dp(142)))
         addGap(tripHistoryCard, 8)
         tripHistoryValue = text("Пока нет завершённых поездок", 11f, white)
         tripHistoryValue.setLineSpacing(dp(3).toFloat(), 1f)
@@ -726,7 +737,16 @@ class MainActivity : Activity() {
     }
 
     private fun renderTripHistory(history: List<com.evolute.telemetrycollector.data.TelemetrySnapshot>) {
-        val trips = com.evolute.telemetrycollector.data.TripHistoryAnalyzer.analyze(history).take(8)
+        val allTrips = com.evolute.telemetrycollector.data.TripHistoryAnalyzer.analyze(history)
+        val stats = com.evolute.telemetrycollector.data.TripConsumptionAnalyzer.summarize(allTrips)
+        val average = stats.averagePercentPer100Km?.let {
+            String.format(java.util.Locale.US, "%.1f %% / 100 км", it)
+        } ?: "недостаточно данных"
+        tripStatsValue.text =
+            "Завершённых поездок: ${stats.tripCount} · общий пробег: ${String.format(java.util.Locale.US, "%.1f", stats.totalDistanceKm)} км\n" +
+            "Расход рассчитан по ${stats.measuredTrips} поездкам (от 1 км): $average"
+        tripConsumptionChart.setPoints(stats.consumptionPoints.take(8).reversed())
+        val trips = allTrips.take(8)
         if (trips.isEmpty()) {
             tripHistoryValue.text = "Пока нет завершённых поездок. Данные появятся после движения и завершения стоянки."
             return
@@ -736,8 +756,11 @@ class MainActivity : Activity() {
         tripHistoryValue.text = trips.joinToString("\n\n") { trip ->
             val date = formatter.format(java.time.Instant.parse(trip.startedAt))
             val durationMinutes = (trip.durationSeconds / 60).coerceAtLeast(1)
-            val soc = trip.socUsedPercent?.let { " · расход SOC ${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: ""
-            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc"
+            val soc = trip.socUsedPercent?.let { " · SOC −${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: " · SOC —"
+            val rate = if (trip.distanceKm >= 1.0 && trip.socUsedPercent != null && trip.socUsedPercent > 0.0) {
+                " · ${String.format(java.util.Locale.US, "%.1f", trip.socUsedPercent / trip.distanceKm * 100.0)}%/100 км"
+            } else ""
+            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate"
         }
     }
 
