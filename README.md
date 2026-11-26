@@ -173,3 +173,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds a regression test for the unchanged-odometer recovery case.
 - Raw SQLite snapshots and CSV export remain unchanged.
 - Release version: 0.21.0 (versionCode 21).
+
+
+## v149 — historical range comparison
+
+- Adds a local dashboard chart comparing the vehicle-reported range with the SOC-based calculated range over recent telemetry snapshots.
+- The chart uses locally stored snapshots and does not change telemetry collection, trip reconstruction, or raw history.
+- SOH remains sourced only from numeric SOH fields actually supplied by EVACONNECT.
+- Release version: 0.22.0 (versionCode 22).
