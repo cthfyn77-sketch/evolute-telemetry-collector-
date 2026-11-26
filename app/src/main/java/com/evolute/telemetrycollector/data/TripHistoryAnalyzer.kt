@@ -24,7 +24,7 @@ internal object TripHistoryAnalyzer {
 
     fun analyze(history: List<TelemetrySnapshot>): List<TripSummary> {
         if (history.size < 2) return emptyList()
-        val ordered = history.mapNotNull { item ->
+        val ordered = OdometerSanitizer.sanitize(history).mapNotNull { item ->
             try { Instant.parse(item.capturedAt).toEpochMilli() to item } catch (_: Exception) { null }
         }.sortedBy { it.first }
         if (ordered.size < 2) return emptyList()
