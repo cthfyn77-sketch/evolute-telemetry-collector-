@@ -231,5 +231,6 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 
 - Trip and charging-session reconstruction now reads the complete locally stored snapshot history instead of the previous 20,000-row window.
 - The analytics query loads only capture time, SOC and odometer; large sensor JSON payloads are not loaded into memory for calculations that do not use them.
+- The complete analytics history is queried in chronological database order; display charts retain their existing bounded history windows.
 - Trip and charging-session detection rules, telemetry collection, raw database records, CSV export, charts and range estimation remain unchanged.
 - Release version: 0.30.0 (versionCode 30).
