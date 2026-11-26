@@ -139,8 +139,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             db.insertWithOnConflict("range_km_samples", null, sample, SQLiteDatabase.CONFLICT_REPLACE)
             last = Triple(nextIndex, boundaryOdometer, socAtBoundary)
 
-            {
-                // Latest eight valid one-kilometre intervals; charging/invalid
+            // Latest eight valid one-kilometre intervals; charging/invalid
                 // intervals are excluded rather than counted as zero consumption.
                 val recent: List<Double> = db.rawQuery(
                     "SELECT soc_consumed FROM range_km_samples WHERE km_index<=? AND soc_consumed IS NOT NULL ORDER BY km_index DESC LIMIT 8",
@@ -164,7 +163,6 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
                     // Do not keep showing a stale forecast after an invalid/charging interval.
                     db.delete("range_estimate", null, null)
                 }
-            }
         }
     }
 
