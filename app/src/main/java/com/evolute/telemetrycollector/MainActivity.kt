@@ -55,6 +55,7 @@ class MainActivity : Activity() {
     private lateinit var connectionValue: TextView
     private lateinit var dashboardBadge: TextView
     private lateinit var vehicleStateValue: TextView
+    private lateinit var climateSummaryValue: TextView
     private lateinit var dataFreshnessValue: TextView
     private lateinit var timeChart: TelemetryChartView
     private lateinit var timeChartCard: LinearLayout
@@ -235,6 +236,17 @@ class MainActivity : Activity() {
         dataFreshnessValue = text("Данные ещё не получены", 10f, muted)
         vehicleStateCard.addView(dataFreshnessValue)
         content.addView(vehicleStateCard)
+
+        addGap(content, 12)
+        val climateCard = card()
+        climateCard.addView(text("КЛИМАТИЧЕСКАЯ СИСТЕМА", 11f, white, true))
+        addGap(climateCard, 5)
+        climateCard.addView(text("Показания датчиков EVACONNECT", 9f, muted))
+        addGap(climateCard, 8)
+        climateSummaryValue = text("Ожидание данных климата", 14f, white)
+        climateSummaryValue.setLineSpacing(dp(5).toFloat(), 1f)
+        climateCard.addView(climateSummaryValue)
+        content.addView(climateCard)
 
         addGap(content, 12)
         val rangeCard = card()
@@ -474,6 +486,55 @@ class MainActivity : Activity() {
         else -> Color.rgb(239, 68, 68)
     }
 
+    /** Read only the four climate values actually supplied by EVACONNECT. */
+    private fun formatClimateSummary(rawSensors: String): String {
+        val root = try { JSONObject(rawSensors) } catch (_: Exception) { JSONObject() }
+
+        fun findNumber(value: Any?, expectedKey: String, depth: Int = 0): Double? {
+            if (depth > 8) return null
+            when (value) {
+                is JSONObject -> {
+                    val keys = value.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        val normalized = key.lowercase(java.util.Locale.ROOT)
+                            .replace(Regex("[^a-z0-9]"), "")
+                        val child = value.opt(key)
+                        if (normalized == expectedKey) {
+                            val number = child.toString().removeSuffix("%").toDoubleOrNull()
+                            if (number != null && number.isFinite()) return number
+                        }
+                        val nested = findNumber(child, expectedKey, depth + 1)
+                        if (nested != null) return nested
+                    }
+                }
+                is JSONArray -> {
+                    for (i in 0 until value.length()) {
+                        val nested = findNumber(value.opt(i), expectedKey, depth + 1)
+                        if (nested != null) return nested
+                    }
+                }
+            }
+            return null
+        }
+
+        fun value(key: String, unit: String, integer: Boolean = false): String {
+            val number = findNumber(root, key)
+                ?: return "—"
+            val formatted = if (integer && number % 1.0 == 0.0) {
+                number.toInt().toString()
+            } else {
+                String.format(java.util.Locale.US, "%.1f", number).trimEnd('0').trimEnd('.')
+            }
+            return "$formatted $unit"
+        }
+
+        return "Заданная температура: " + value("climatetargettemp", "°C") +
+            "\nТемпература в салоне: " + value("inboardtemp", "°C") +
+            "\nТемпература за бортом: " + value("outsidetemp", "°C") +
+            "\nСкорость вентилятора: " + value("climatefanspeed", "уровень", true)
+    }
+
     private fun updateDashboard() {
         val db = SnapshotDb.get(this)
         val latest = db.latestSnapshot()
@@ -495,7 +556,9 @@ class MainActivity : Activity() {
             vehicleStateValue.text = "Ожидание данных автомобиля"
             vehicleStateValue.setTextColor(white)
             dataFreshnessValue.text = "Данные ещё не получены"
+            climateSummaryValue.text = "Ожидание данных климата"
         } else {
+            climateSummaryValue.text = formatClimateSummary(latest.sensorsJson)
             val currentSoc = latest.soc.coerceIn(0.0, 100.0)
             val socColor = socLevelColor(currentSoc)
             socValue.text = "${latest.soc.toInt()}%"
