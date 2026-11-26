@@ -51,6 +51,11 @@ class MainActivity : Activity() {
     private lateinit var connectionValue: TextView
     private lateinit var chart: TelemetryChartView
     private lateinit var chartCard: LinearLayout
+    private lateinit var rangeTimeChart: HistoryChartView
+    private lateinit var rangeMileageChart: HistoryChartView
+    private lateinit var sohTimeChart: HistoryChartView
+    private lateinit var sohMileageChart: HistoryChartView
+    private lateinit var sohInfo: TextView
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -290,6 +295,40 @@ class MainActivity : Activity() {
         content.addView(chartCard)
 
         addGap(content, 12)
+        val rangeHistoryCard = card()
+        rangeHistoryCard.addView(text("ИСТОРИЯ ЗАПАСА ХОДА", 12f, white, true))
+        addGap(rangeHistoryCard, 6)
+        rangeHistoryCard.addView(row().apply {
+            addView(text("● ШТАТНЫЙ", 9f, Color.rgb(96, 165, 250), true),
+                LinearLayout.LayoutParams(0, -2, 1f))
+            addView(text("● НАШ РАСЧЁТ", 9f, accent, true))
+        })
+        addGap(rangeHistoryCard, 6)
+        rangeTimeChart = HistoryChartView(this)
+        rangeHistoryCard.addView(rangeTimeChart, LinearLayout.LayoutParams(-1, dp(155)))
+        addGap(rangeHistoryCard, 8)
+        rangeHistoryCard.addView(text("ЗАПАС ХОДА / ПРОБЕГ", 9f, muted, true))
+        rangeMileageChart = HistoryChartView(this)
+        rangeHistoryCard.addView(rangeMileageChart, LinearLayout.LayoutParams(-1, dp(145)))
+        content.addView(rangeHistoryCard)
+
+        addGap(content, 12)
+        val sohCard = card()
+        sohCard.addView(text("СОСТОЯНИЕ БАТАРЕИ · SOH", 12f, white, true))
+        addGap(sohCard, 5)
+        sohInfo = text("Поиск фактического параметра SOH в телеметрии", 10f, muted)
+        sohCard.addView(sohInfo)
+        addGap(sohCard, 8)
+        sohCard.addView(text("SOH / ВРЕМЯ", 9f, muted, true))
+        sohTimeChart = HistoryChartView(this)
+        sohCard.addView(sohTimeChart, LinearLayout.LayoutParams(-1, dp(145)))
+        addGap(sohCard, 8)
+        sohCard.addView(text("SOH / ПРОБЕГ", 9f, muted, true))
+        sohMileageChart = HistoryChartView(this)
+        sohCard.addView(sohMileageChart, LinearLayout.LayoutParams(-1, dp(145)))
+        content.addView(sohCard)
+
+        addGap(content, 12)
         val collection = card()
         collection.addView(row().apply {
             addView(text("СБОР ТЕЛЕМЕТРИИ", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -462,6 +501,74 @@ class MainActivity : Activity() {
         val hasChartHistory = snapshots.size >= 2
         chartCard.visibility = if (hasChartHistory) View.VISIBLE else View.GONE
         chart.setSnapshots(snapshots)
+
+        val rangeHistory = db.rangeHistory()
+        val stockByTime = rangeHistory.mapIndexedNotNull { index, point ->
+            point.stockRange?.takeIf { it.isFinite() && it >= 0.0 }?.let { index.toFloat() to it.toFloat() }
+        }
+        val calculatedByTime = rangeHistory.mapIndexed { index, point ->
+            index.toFloat() to point.calculatedRange.toFloat()
+        }
+        rangeTimeChart.setSeries(listOf(
+            HistoryChartSeries("Штатный", Color.rgb(96, 165, 250), stockByTime),
+            HistoryChartSeries("Расчёт", accent, calculatedByTime)
+        ), "Запас хода появится после накопления истории")
+        val stockByMileage = rangeHistory.mapNotNull { point ->
+            point.stockRange?.takeIf { it.isFinite() && it >= 0.0 }?.let { point.odometer.toFloat() to it.toFloat() }
+        }
+        val calculatedByMileage = rangeHistory.map { it.odometer.toFloat() to it.calculatedRange.toFloat() }
+        rangeMileageChart.setSeries(listOf(
+            HistoryChartSeries("Штатный", Color.rgb(96, 165, 250), stockByMileage),
+            HistoryChartSeries("Расчёт", accent, calculatedByMileage)
+        ), "Недостаточно данных о пробеге")
+
+        val sohByTime = snapshots.mapIndexedNotNull { index, item ->
+            extractSoh(item.sensorsJson)?.let { index.toFloat() to it.toFloat() }
+        }
+        val sohByMileage = snapshots.mapNotNull { item ->
+            extractSoh(item.sensorsJson)?.let { item.odometer.toFloat() to it.toFloat() }
+        }
+        val sohSeriesTime = listOf(HistoryChartSeries("SOH", Color.rgb(167, 139, 250), sohByTime))
+        val sohSeriesMileage = listOf(HistoryChartSeries("SOH", Color.rgb(167, 139, 250), sohByMileage))
+        val noSohMessage = "EVACONNECT не передаёт SOH"
+        sohTimeChart.setSeries(sohSeriesTime, noSohMessage)
+        sohMileageChart.setSeries(sohSeriesMileage, noSohMessage)
+        sohInfo.text = if (sohByTime.isEmpty()) {
+            "Параметр SOH отсутствует в полученной телеметрии. Значения не подменяются расчётными."
+        } else {
+            "Получено точек SOH: ${sohByTime.size}"
+        }
+    }
+
+    /** Read only explicit state-of-health fields; SOC is never treated as SOH. */
+    private fun extractSoh(raw: String): Double? {
+        return try {
+            val root = JSONObject(raw)
+            val accepted = setOf("soh", "batterysoh", "batteryhealth", "stateofhealth",
+                "battery_state_of_health", "state_of_health")
+            fun search(value: Any?): Double? {
+                if (value is JSONObject) {
+                    val keys = value.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        val child = value.opt(key)
+                        if (key.lowercase() in accepted && child != null && child != JSONObject.NULL) {
+                            val number = child.toString().toDoubleOrNull()
+                            if (number != null && number.isFinite() && number in 0.0..100.0) return number
+                        }
+                        val nested = search(child)
+                        if (nested != null) return nested
+                    }
+                } else if (value is JSONArray) {
+                    for (i in 0 until value.length()) {
+                        val nested = search(value.opt(i))
+                        if (nested != null) return nested
+                    }
+                }
+                return null
+            }
+            search(root)
+        } catch (_: Exception) { null }
     }
 
     private fun formatApiFields(raw: String): String {
