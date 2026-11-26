@@ -111,7 +111,9 @@ internal object RangeEstimator {
             }
         }
 
-        if (validIntervalConsumptions.isEmpty()) return null
+        // Keep the vehicle-reported range active until a full eight-interval
+        // sample window exists. A shorter average is too sensitive to one km.
+        if (validIntervalConsumptions.size < MAX_VALID_INTERVALS) return null
         val averagePerKm = validIntervalConsumptions.average()
         val latestSoc = ordered.last().soc
         if (!averagePerKm.isFinite() || averagePerKm <= EPSILON ||
