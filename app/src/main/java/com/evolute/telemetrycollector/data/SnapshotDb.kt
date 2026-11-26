@@ -118,12 +118,12 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"
-        return "Время: ${item.capturedAt}\\nSOC: ${item.soc}%\\nОдометр: ${item.odometer} км\\nШтатный запас: ${item.stockRange?.let { "${it} км" } ?: "—"}\\nОнлайн: ${item.online}; готовность: ${item.ready}"
+        return "Время: ${item.capturedAt}\nSOC: ${item.soc}%\nОдометр: ${item.odometer} км\nШтатный запас: ${item.stockRange?.let { "${it} км" } ?: "—"}\nОнлайн: ${item.online}; готовность: ${item.ready}"
     }
 
     fun exportCsv(out: java.io.OutputStream) {
         out.writer(Charsets.UTF_8).use { w ->
-            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json\\r\\n")
+            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json\\r\n")
             readableDatabase.rawQuery(
                 "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id", null
             ).use { c ->
@@ -131,7 +131,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
                     val row = (0..7).joinToString(",") { i ->
                         if (c.isNull(i)) "" else csvField(c.getString(i))
                     }
-                    w.write(row + "\\r\\n")
+                    w.write(row + "\\r\n")
                 }
             }
         }
