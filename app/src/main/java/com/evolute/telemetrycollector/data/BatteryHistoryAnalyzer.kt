@@ -26,12 +26,13 @@ internal object BatteryHistoryAnalyzer {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
         history.forEach { sample ->
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
-            extract(sample.sensorsJson).forEach { (path, value) ->
+            val sensorValues = extract(sample.sensorsJson)
+            sensorValues.forEach { (path, value) ->
                 points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value))
             }
             // SOC is stored as a first-class snapshot field, even when EVACONNECT
             // does not expose it again inside the nested sensor JSON.
-            val sensorHasSoc = points.keys.any { key ->
+            val sensorHasSoc = sensorValues.keys.any { key ->
                 key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
                     it == "soc" || it.contains("stateofcharge") || it.contains("chargelevel")
                 }
