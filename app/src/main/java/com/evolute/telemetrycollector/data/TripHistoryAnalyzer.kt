@@ -57,22 +57,27 @@ internal object TripHistoryAnalyzer {
             val (previousAt, previous) = ordered[index - 1]
             val (currentAt, current) = ordered[index]
 
-            // A long gap is ambiguous: movement may have happened while offline,
-            // or the vehicle may simply have been parked. If the odometer advanced,
-            // or both odometer and SOC are unchanged (a stale recovery sample), discard
-            // the incomplete segment. If odometer is unchanged but SOC changed, treat
-            // it as a stationary stop and close the completed trip.
-            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS) {
+            val gapMillis = currentAt - previousAt
+
+            // A gap of at least 15 minutes is treated as a completed stationary stop.
+            // A shorter but unusually long gap (over 3 minutes) may be an outage:
+            // discard the incomplete segment if movement occurred while offline, or
+            // if the recovered sample is unchanged in both odometer and SOC.
+            if (gapMillis >= STOP_GAP_MILLIS) {
+                finishTrip()
+                lastMovementAt = 0L
+                continue
+            }
+            if (gapMillis > TELEMETRY_GAP_MILLIS) {
                 val recoveredMovement = current.odometer - previous.odometer
                 val recoveredSocChange = kotlin.math.abs(current.soc - previous.soc)
                 if (recoveredMovement > MOVEMENT_EPSILON_KM ||
                     !recoveredSocChange.isFinite() || recoveredSocChange <= 0.1) {
                     active = null
-                    lastMovementAt = 0L
                 } else {
                     finishTrip()
-                    lastMovementAt = 0L
                 }
+                lastMovementAt = 0L
                 continue
             }
 
