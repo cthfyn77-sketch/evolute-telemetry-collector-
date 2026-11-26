@@ -46,26 +46,24 @@ class SnapshotDbTest {
         val csv = output.toString(Charsets.UTF_8.name())
 
         assertTrue(csv.startsWith("captured_at,api_updated_at,soc,odometer,stock_range,online,ready"))
-        assertTrue(csv.contains(Regex(",50(?:\\\\.0)?,1000(?:\\\\.0)?,,0,1")))
+        assertTrue(csv.contains(Regex(",50(?:\\.0)?,1000(?:\\.0)?,,0,1")))
     }
 
     @Test fun csvEscapingPreservesCommasQuotesAndLineBreaks() {
         assertEquals("plain", csvField("plain"))
-        assertEquals("\\"sensor,value\\"", csvField("sensor,value"))
-        assertEquals("\\"sensor \\"\\"value\\"\\"\\"", csvField("sensor \\"value\\""))
-        assertEquals("\\"line one\\r\\nline two\\"", csvField("line one\\r\\nline two"))
+        assertEquals("\"sensor,value\"", csvField("sensor,value"))
+        assertEquals("\"sensor \"\"value\"\"\"", csvField("sensor \"value\""))
+        assertEquals("\"line one\r\nline two\"", csvField("line one\r\nline two"))
     }
 
     @Test fun exportsSensorJsonAsOneCsvField() {
-        db.insert(ApiClient.Telemetry(
-            50.0, 1000.0, null, false, true, null,
-            """{"sensor":"value, with comma","note":"say \\"hi\\""}"""
-        ))
+        val json = """{"sensor":"value, with comma","note":"say \"hi\""}"""
+        db.insert(ApiClient.Telemetry(50.0, 1000.0, null, false, true, null, json))
         val output = ByteArrayOutputStream()
         db.exportCsv(output)
         val csv = output.toString(Charsets.UTF_8.name())
 
-        assertTrue(csv.contains("\\\"{\\\"sensor\\\":\\\"value, with comma\\\",\\\"note\\\":\\\"say \\\\\\\"hi\\\\\\\"\\\"}\\\""))
+        assertTrue(csv.contains(csvField(json)))
     }
 
     @Test fun recentSnapshotsHonorsAWindowLargerThanTwoHundredRows() {
