@@ -18,6 +18,7 @@ class TripHistoryAnalyzerTest {
         assertEquals(1, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
         assertEquals(120L, trips[0].durationSeconds)
+        assertEquals(30.0, trips[0].averageSpeedKmh!!, 0.001)
         assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
     }
 
@@ -119,6 +120,7 @@ class TripHistoryAnalyzerTest {
         assertEquals(2, stats.measuredTrips)
         assertEquals(13.0, stats.totalSocUsedPercent, 0.001)
         assertEquals(43.333, stats.averagePercentPer100Km!!, 0.01)
+        assertEquals(66.75, stats.averageSpeedKmh!!, 0.001)
     }
 
     @Test fun rejectsConsumptionWhenSocEndpointsAreOutsideValidRange() {
@@ -150,3 +152,10 @@ class TripHistoryAnalyzerTest {
     }
 
 }
+
+
+    @Test fun averageSpeedIsUnavailableWhenTripHasNoElapsedTime() {
+        val trip = TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:00:00Z", 5.0, 0, 2.0)
+        assertNull(trip.averageSpeedKmh)
+        assertNull(TripConsumptionAnalyzer.summarize(listOf(trip)).averageSpeedKmh)
+    }
