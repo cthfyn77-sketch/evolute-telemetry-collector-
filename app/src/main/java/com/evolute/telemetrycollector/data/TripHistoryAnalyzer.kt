@@ -78,3 +78,45 @@ internal object TripHistoryAnalyzer {
         }
     }
 }
+
+
+internal data class TripConsumptionPoint(
+    val startedAt: String,
+    val distanceKm: Double,
+    val socUsedPercent: Double,
+    val percentPer100Km: Double
+)
+
+internal data class TripHistoryStats(
+    val tripCount: Int,
+    val totalDistanceKm: Double,
+    val measuredTrips: Int,
+    val totalSocUsedPercent: Double,
+    val averagePercentPer100Km: Double?,
+    val consumptionPoints: List<TripConsumptionPoint>
+)
+
+/** Calculates trip consumption only from completed trips with at least 1 km and valid SOC decrease. */
+internal object TripConsumptionAnalyzer {
+    fun summarize(trips: List<TripSummary>): TripHistoryStats {
+        val points = trips.mapNotNull { trip ->
+            val soc = trip.socUsedPercent ?: return@mapNotNull null
+            if (!trip.distanceKm.isFinite() || trip.distanceKm < 1.0 ||
+                !soc.isFinite() || soc <= 0.0 || soc > 100.0) return@mapNotNull null
+            val rate = soc / trip.distanceKm * 100.0
+            if (!rate.isFinite()) return@mapNotNull null
+            TripConsumptionPoint(trip.startedAt, trip.distanceKm, soc, rate)
+        }
+        val measuredDistance = points.sumOf { it.distanceKm }
+        val measuredSoc = points.sumOf { it.socUsedPercent }
+        val average = if (measuredDistance > 0.0) measuredSoc / measuredDistance * 100.0 else null
+        return TripHistoryStats(
+            tripCount = trips.size,
+            totalDistanceKm = trips.sumOf { it.distanceKm.coerceAtLeast(0.0) },
+            measuredTrips = points.size,
+            totalSocUsedPercent = measuredSoc,
+            averagePercentPer100Km = average,
+            consumptionPoints = points
+        )
+    }
+}
