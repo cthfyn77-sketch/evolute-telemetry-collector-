@@ -15,7 +15,7 @@ data class TelemetrySnapshot(
     val sensorsJson: String
 )
 
-class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
+data class RangeHistoryPoint(val capturedAt: String, val odometer: Double, val stockRange: Double?, val calculatedRange: Double)\n\nclass SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE snapshots(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,6 +61,22 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
     fun calculatedRangeKm(): Double? = RangeEstimator.estimate(estimationHistory())
 
     fun averageConsumptionPer100Km(): Double? = RangeEstimator.consumptionPer100Km(estimationHistory())
+
+    /** Historical comparison points, sampled from the existing local snapshot database. */
+    fun rangeHistory(): List<RangeHistoryPoint> {
+        val history = recentSnapshots(240)
+        if (history.size < 6) return emptyList()
+        val result = mutableListOf<RangeHistoryPoint>()
+        history.forEachIndexed { index, item ->
+            if (index >= 5 && (index % 5 == 0 || index == history.lastIndex)) {
+                val estimate = RangeEstimator.estimate(history.subList(0, index + 1))
+                if (estimate != null && estimate.isFinite()) {
+                    result.add(RangeHistoryPoint(item.capturedAt, item.odometer, item.stockRange, estimate))
+                }
+            }
+        }
+        return result
+    }
 
     fun count(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM snapshots", null).use {
         it.moveToFirst(); it.getLong(0)
