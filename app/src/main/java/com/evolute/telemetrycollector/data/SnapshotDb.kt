@@ -139,7 +139,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             db.insertWithOnConflict("range_km_samples", null, sample, SQLiteDatabase.CONFLICT_REPLACE)
             last = Triple(nextIndex, boundaryOdometer, socAtBoundary)
 
-            if (true) {
+            {
                 // Latest eight valid one-kilometre intervals; charging/invalid
                 // intervals are excluded rather than counted as zero consumption.
                 val recent: List<Double> = db.rawQuery(
