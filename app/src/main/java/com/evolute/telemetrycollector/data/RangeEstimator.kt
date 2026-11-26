@@ -1,7 +1,7 @@
 package com.evolute.telemetrycollector.data
 
 /**
- * Measures SOC consumption in complete 5-km intervals and averages the latest
+ * Measures SOC consumption in complete 1-km intervals and averages the latest
  * eight valid intervals. Raw snapshots are never modified.
  */
 internal data class RangeMetrics(
@@ -10,7 +10,7 @@ internal data class RangeMetrics(
 )
 
 internal object RangeEstimator {
-    private const val STEP_KM = 5.0
+    private const val STEP_KM = 1.0
     private const val MAX_VALID_INTERVALS = 8
     private const val EPSILON = 0.0001
     private const val CHARGE_RISE_SOC = 0.2
