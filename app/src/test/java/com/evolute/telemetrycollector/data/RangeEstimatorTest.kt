@@ -55,9 +55,10 @@ class RangeEstimatorTest {
             }
             snapshot(soc, km.toDouble())
         }
-        // Average consumption is 0.3%/km; 97% remains => 323.333... km.
-        assertEquals(323.333333, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(30.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        // The rolling window keeps the latest 8 intervals: three at 0.4% and five at 0.2%.
+        // Average is 0.275%/km; 97% remains => about 352.727 km.
+        assertEquals(352.727273, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(27.5, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun chargingSessionResetsOneKilometerConsumptionWindow() {
