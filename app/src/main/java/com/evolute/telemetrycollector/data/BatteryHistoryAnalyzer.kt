@@ -70,8 +70,12 @@ internal object BatteryHistoryAnalyzer {
     fun render(report: Report): String {
         if (report.metrics.isEmpty()) return "История появится после получения числовых датчиков напряжения, тока, температуры или SOH."
         val lines = report.metrics.take(12).map { m ->
+            val hasGap = m.points.zipWithNext().any {
+                Duration.between(it.first.at, it.second.at).toMinutes() > 10
+            }
             val delta = m.points.last().value - m.points.first().value
-            val change = if (m.points.size >= 2) " · изменение за период " + signed(delta) else ""
+            val change = if (m.points.size >= 2 && !hasGap) " · изменение за период " + signed(delta)
+                else if (hasGap) " · есть пропуск данных" else ""
             m.path + ": сейчас " + fmt(m.latest) + " · диапазон " + fmt(m.min) + "–" + fmt(m.max) + change + " · " + m.samples + " замеров"
         }.toMutableList()
         if (report.metrics.size > 12) lines.add("… ещё " + (report.metrics.size - 12) + " параметров")
