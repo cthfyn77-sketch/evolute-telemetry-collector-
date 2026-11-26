@@ -147,4 +147,46 @@ class RangeEstimatorTest {
         assertEquals(45.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
+    @Test fun resetsRangeWindowAfterTrueOdometerRollback() {
+        val history = listOf(
+            snapshot(100.0, 10.0, 0),
+            snapshot(99.5, 11.0, 1),
+            // A genuine rollback starts a new odometer epoch.
+            snapshot(99.0, 0.0, 2),
+            snapshot(98.6, 1.0, 3)
+        )
+
+        // The pre-rollback interval is discarded; only the new 0.4%/km interval remains.
+        assertEquals(246.5, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
+    @Test fun movingSocRiseResetsPartialIntervalAndRollingWindow() {
+        val history = listOf(
+            snapshot(100.0, 0.0, 0),
+            snapshot(99.5, 1.0, 1),
+            // SOC rises while moving (e.g. regeneration) before the next km boundary.
+            snapshot(100.0, 1.5, 2),
+            snapshot(99.6, 2.5, 3)
+        )
+
+        // The pre-rise interval and partial mixed interval are excluded.
+        assertEquals(249.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
+    @Test fun stationaryChargingClearsPreChargeRollingWindow() {
+        val history = (0..7).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        } + listOf(
+            snapshot(95.0, 7.0, 8),
+            snapshot(90.0, 7.0, 9),
+            snapshot(89.6, 8.0, 10)
+        )
+
+        // The single post-charge interval is used alone, not averaged with pre-charge data.
+        assertEquals(224.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
 }
