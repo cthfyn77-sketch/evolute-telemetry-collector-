@@ -61,8 +61,18 @@ internal object TripHistoryAnalyzer {
             // Always discard the incomplete trip segment, even if the odometer is unchanged
             // on the first recovered sample; that sample becomes the next baseline.
             if (currentAt - previousAt > TELEMETRY_GAP_MILLIS) {
-                active = null
-                lastMovementAt = 0L
+                val recoveredMovement = current.odometer - previous.odometer
+                if (recoveredMovement > MOVEMENT_EPSILON_KM) {
+                    // Distance changed while telemetry was missing: do not infer
+                    // the unobserved part of the drive; discard the partial segment.
+                    active = null
+                    lastMovementAt = 0L
+                } else {
+                    // No odometer movement across the gap: close the previous drive
+                    // as a stop, then let the next sample establish a fresh baseline.
+                    finishTrip()
+                    lastMovementAt = 0L
+                }
                 continue
             }
 
