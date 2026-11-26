@@ -793,9 +793,13 @@ class MainActivity : Activity() {
         val average = stats.averagePercentPer100Km?.let {
             String.format(java.util.Locale.US, "%.1f %% / 100 км", it)
         } ?: "недостаточно данных"
+        val averageSpeed = stats.averageSpeedKmh?.let {
+            String.format(java.util.Locale.US, "%.1f км/ч", it)
+        } ?: "—"
         tripStatsValue.text =
             "Завершённых поездок: ${stats.tripCount} · общий пробег: ${String.format(java.util.Locale.US, "%.1f", stats.totalDistanceKm)} км\n" +
-            "Расход рассчитан по ${stats.measuredTrips} поездкам (от 1 км): $average"
+            "Расход рассчитан по ${stats.measuredTrips} поездкам (от 1 км): $average\n" +
+            "Средняя скорость по завершённым поездкам: $averageSpeed"
         tripConsumptionChart.setPoints(stats.consumptionPoints.take(8).reversed())
         val trips = allTrips.take(8)
         if (trips.isEmpty()) {
@@ -811,7 +815,10 @@ class MainActivity : Activity() {
             val rate = if (trip.distanceKm >= 1.0 && trip.socUsedPercent != null && trip.socUsedPercent > 0.0) {
                 " · ${String.format(java.util.Locale.US, "%.1f", trip.socUsedPercent / trip.distanceKm * 100.0)}%/100 км"
             } else ""
-            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate"
+            val speed = trip.averageSpeedKmh?.let {
+                " · ср. ${String.format(java.util.Locale.US, "%.1f", it)} км/ч"
+            } ?: ""
+            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate$speed"
         }
     }
 
