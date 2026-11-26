@@ -110,7 +110,7 @@ class RangeEstimatorTest {
         val afterCharge = listOf(snapshot(100.0, 8.0, 20)) +
             (1..8).map { km -> snapshot(100.0 - km * 0.4, 8.0 + km, 20 + km) }
         val history = beforeCharge + afterCharge
-        assertEquals(240.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 }
