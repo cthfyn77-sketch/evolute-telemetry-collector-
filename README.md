@@ -89,3 +89,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds individual history plots for numeric battery voltage, current, temperature and SOH sensor fields actually supplied by EVACONNECT, with current/min/max values and sample counts.
 - Battery metric plots use the existing four-hour (480 snapshot) analysis window. Existing collection, range estimation, telemetry-gap handling and SOH confirmation logic are unchanged.
 - Release version: 0.11.0 (versionCode 11).
+
+
+## v137 — filtered battery telemetry history
+
+- Battery history charts and summary exclude a one-sample spike only when the next reading returns close to the previous level within three minutes.
+- Raw telemetry snapshots in SQLite are not modified or deleted; filtering applies only to the derived battery-history view.
+- Sustained changes remain visible. Missing-data intervals are not bridged.
+- A quality alert identifies each excluded isolated spike.
+- Release version: 0.12.0 (versionCode 12).
