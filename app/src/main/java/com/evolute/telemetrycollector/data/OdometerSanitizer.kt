@@ -16,6 +16,7 @@ internal object OdometerSanitizer {
         val ordered = history.mapNotNull { item ->
             try { Instant.parse(item.capturedAt) to item } catch (_: Exception) { null }
         }.sortedBy { it.first }
+        if (ordered.size != history.size) return history
         if (ordered.size < 3) return ordered.map { it.second }
 
         val rejected = linkedSetOf<Int>()
