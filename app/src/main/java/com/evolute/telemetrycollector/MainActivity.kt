@@ -2,6 +2,7 @@ package com.evolute.telemetrycollector
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -410,6 +411,24 @@ class MainActivity : Activity() {
                     .putExtra(Intent.EXTRA_TITLE, "evolute-telemetry.csv"), csvRequest
             )
         })
+        addGap(collection, 8)
+        collection.addView(actionButton("ПОВТОРНО ВОЙТИ В EVACONNECT", surface2, white) {
+            AlertDialog.Builder(this)
+                .setTitle("Повторная авторизация")
+                .setMessage("Остановить сбор и удалить сохранённые токены? Локальная история телеметрии и база поездок останутся на устройстве.")
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Продолжить") { _, _ ->
+                    stopService(Intent(this, CollectorService::class.java))
+                    try {
+                        store.clear()
+                        buildUi()
+                        show("Сессия очищена. Выполните вход в EVACONNECT заново.")
+                    } catch (e: Exception) {
+                        show("Не удалось сбросить авторизацию: ${e.message ?: e.javaClass.simpleName}")
+                    }
+                }
+                .show()
+        })
         content.addView(collection)
 
         addGap(content, 12)
@@ -593,7 +612,7 @@ class MainActivity : Activity() {
             calculatedRangeHint.text = if (calculatedRange != null) {
                 "По среднему расходу SOC · последние 8 километров"
             } else {
-                "Штатный прогноз · сбор истории 5 км"
+                "Штатный прогноз · сбор истории 1 км"
             }
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
