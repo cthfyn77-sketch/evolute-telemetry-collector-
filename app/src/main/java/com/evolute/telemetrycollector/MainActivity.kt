@@ -556,6 +556,8 @@ class MainActivity : Activity() {
         val key = path.lowercase(java.util.Locale.ROOT)
             .replace(Regex("[^a-zа-я0-9]"), "")
         return when {
+            key.contains("12vbatteryvoltage") ->
+                "Напряжение 12В АКБ"
             listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } ->
                 "Напряжение АКБ"
             listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } ->
@@ -563,15 +565,19 @@ class MainActivity : Activity() {
             listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
                 key.contains("enginetemperature") || key.contains("enginetemp") ->
                 "Температура ОЖ"
-            listOf("climate", "hvac").any { key.contains(it) } &&
-                listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } ->
-                "Климат — заданная температура"
+            key.contains("climatetargettemp") || (
+                listOf("climate", "hvac").any { key.contains(it) } &&
+                listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) }
+            ) -> "Климат — заданная температура"
+            key.contains("climatefanspeed") ->
+                "Климат — скорость вентилятора"
             listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
                 "hvacinterior", "climateinside", "hvacinside", "insideclimate",
                 "cabinairtemperature", "interiorairtemperature", "insideairtemperature",
                 "cabinairtemp", "interiorairtemp", "insideairtemp").any { key.contains(it) } ->
                 "Климат — температура в салоне"
-            listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } ->
+            key.contains("inboardtemp") ||
+                listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } ->
                 "Температура в салоне"
             listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } ->
                 "Температура за бортом"
@@ -604,6 +610,7 @@ class MainActivity : Activity() {
             when {
                 key == "soc" || key.contains("stateofcharge") || key.contains("chargelevel") -> 0
                 key.contains("soh") || key.contains("stateofhealth") || key.contains("batteryhealth") -> 1
+                key.contains("12vbatteryvoltage") -> 2
                 listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } -> 2
                 listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } -> 3
                 listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
@@ -611,8 +618,11 @@ class MainActivity : Activity() {
                 listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } -> 5
                 listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } -> 6
                 listOf("temperature", "temp", "batterytemperature").any { key.contains(it) } -> 7
-                listOf("climate", "hvac", "ac").any { key.contains(it) } &&
-                    listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } -> 8
+                key.contains("climatetargettemp") || (
+                    listOf("climate", "hvac").any { key.contains(it) } &&
+                    listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) }
+                ) -> 8
+                key.contains("climatefanspeed") -> 9
                 listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
                     "hvacinterior", "climateinside", "hvacinside", "insideclimate",
                     "cabinairtemperature", "interiorairtemperature", "insideairtemperature",
