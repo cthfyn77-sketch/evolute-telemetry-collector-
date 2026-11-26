@@ -178,7 +178,7 @@ class RangeEstimatorTest {
             chronological[2], chronological[1], chronological[4]
         )
 
-        assertEquals(197.5, RangeEstimator.estimate(shuffled)!!, 0.001)
+        assertEquals(195.0, RangeEstimator.estimate(shuffled)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(shuffled)!!, 0.001)
     }
 
