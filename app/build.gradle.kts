@@ -14,6 +14,19 @@ android {
         versionName = "0.2.0"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
+    signingConfigs {
+        create("persistentDebug") {
+            storeFile = file("ci-signing.jks")
+            storePassword = System.getenv("SIGNING_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("persistentDebug")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
