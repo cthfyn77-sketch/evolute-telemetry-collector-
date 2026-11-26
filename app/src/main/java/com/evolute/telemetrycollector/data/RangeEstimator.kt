@@ -59,6 +59,10 @@ internal object RangeEstimator {
             // including when the vehicle was stationary during the missing period.
             // Never carry SOC consumption or kilometre checkpoints across an outage.
             if (isTelemetryGap(previous, current)) {
+                // A gap invalidates both the active interval and the rolling
+                // consumption window: pre-outage driving must not affect the
+                // first estimate after telemetry has recovered.
+                validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
                 nextCheckpoint = baselineDistance + STEP_KM
