@@ -36,7 +36,7 @@ internal object RangeEstimator {
             try { java.time.Instant.parse(item.capturedAt).toEpochMilli() to item }
             catch (_: Exception) { null }
         }
-        return if (parsed.size == history.size && parsed.isNotEmpty()) {
+        return if (parsed.size == sanitized.size && parsed.isNotEmpty()) {
             parsed.sortedBy { it.first }.map { it.second }
         } else history
     }
