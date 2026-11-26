@@ -32,7 +32,7 @@ Foreground service вызывает `EvoluteClient.default_car_id()` и `Evolute
 ## Ограничения безопасности
 - Package: `com.evolute.telemetrycollector` — не совпадает с приложением Range Monitor.
 - Никаких команд автомобилю, управления зарядкой или изменения настроек.
-- Расчётный запас хода строится по фактическому расходу SOC на завершённых интервалах по 5 км; прогноз использует среднее последних восьми валидных интервалов. До накопления первого полного интервала показывается штатный запас хода.
+- Расчётный запас хода строится по фактическому расходу SOC на каждом завершённом километровом интервале; прогноз использует среднее последних восьми валидных интервалов. До накопления первого полного интервала показывается штатный запас хода.
 - Токены не включаются в исходный код, CSV или диагностические сообщения.
 - Данные остаются локально на устройстве; внешнего сервера проекта нет.
 
@@ -115,3 +115,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Resets the measurement baseline after a telemetry outage or a stationary charging event; odometer anomaly protection from v138 remains active.
 - Raw telemetry snapshots and CSV export remain unchanged.
 - Release version: 0.14.0 (versionCode 14).
+
+
+## v140 — battery chart names
+
+- Renames the battery voltage chart to "Напряжение АКБ".
+- Keeps the current chart title unchanged ("Ток батареи").
+- Gives coolant, cabin and outside temperature charts distinct Russian names when the corresponding sensor fields are supplied.
+- Orders the voltage/current/coolant/cabin/outside charts consistently; SOC and SOH remain prioritized.
+- Expands numeric sensor recognition for coolant, cabin and ambient temperature fields.
+- Release version: 0.15.0 (versionCode 15).
