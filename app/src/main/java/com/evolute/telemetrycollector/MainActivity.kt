@@ -560,7 +560,7 @@ class MainActivity : Activity() {
                 "Напряжение батареи"
             listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } ->
                 "Ток батареи"
-            listOf("temperature", "temp", "batter ytemperature").any { key.contains(it) } ->
+            listOf("temperature", "temp", "batterytemperature").any { key.contains(it) } ->
                 "Температура батареи"
             listOf("soh", "stateofhealth", "batteryhealth", "health").any { key.contains(it) } ->
                 "Состояние батареи (SOH)"
