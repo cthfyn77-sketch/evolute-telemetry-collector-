@@ -24,6 +24,13 @@ internal object BatteryHistoryAnalyzer {
 
     fun analyze(history: List<TelemetrySnapshot>): Report {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
+        val sensorSocExists = history.any { sample ->
+            extract(sample.sensorsJson).keys.any { key ->
+                key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
+                    it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
+                }
+            }
+        }
         history.forEach { sample ->
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
             val sensorValues = extract(sample.sensorsJson)
@@ -34,10 +41,10 @@ internal object BatteryHistoryAnalyzer {
             // does not expose it again inside the nested sensor JSON.
             val sensorHasSoc = sensorValues.keys.any { key ->
                 key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
-                    it == "soc" || it.contains("stateofcharge") || it.contains("chargelevel")
+                    it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
                 }
             }
-            if (!sensorHasSoc && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
+            if (!sensorSocExists && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
                 points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc))
             }
         }
