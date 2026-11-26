@@ -200,3 +200,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Shows the sum of observed SOC-rise intervals separately from physical plug-in time; the app does not infer a charger connection or energy in kWh.
 - Keeps the existing stationary-SOC-rise detection, five-session detail list, raw snapshots and CSV export unchanged.
 - Release version: 0.26.0 (versionCode 26).
+
+
+## v154 — charging session time range
+
+- Shows both the first and last observed timestamps for each of the five latest reconstructed charging sessions.
+- Keeps the measured SOC gain and observed interval duration explicit; timestamps do not imply a confirmed physical plug-in or unplug time.
+- Charging-session detection, summary calculations, telemetry collection, range estimation and stored snapshots are unchanged.
+- Release version: 0.27.0 (versionCode 27).
