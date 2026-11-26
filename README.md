@@ -208,3 +208,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Keeps the measured SOC gain and observed interval duration explicit; timestamps do not imply a confirmed physical plug-in or unplug time.
 - Charging-session detection, summary calculations, telemetry collection, range estimation and stored snapshots are unchanged.
 - Release version: 0.27.0 (versionCode 27).
+
+
+## v155 — standards-compliant CSV export
+
+- Escapes CSV fields containing commas, quotation marks, or line breaks according to RFC 4180, including the complete sensor JSON column.
+- Uses CRLF record separators so exported telemetry rows remain intact in spreadsheet applications.
+- Adds regression tests for quoted values, embedded quotes, line breaks, and JSON sensor data.
+- Does not change stored snapshots, telemetry collection, charging-session reconstruction, trip analytics, or range estimation.
+- Release version: 0.28.0 (versionCode 28).
