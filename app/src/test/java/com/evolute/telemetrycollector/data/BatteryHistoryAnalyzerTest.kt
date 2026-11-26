@@ -13,7 +13,8 @@ class BatteryHistoryAnalyzerTest {
     @Test fun summarizesBatteryMetricFields() {
         val history = listOf(sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350.0,"batteryTemperature":24,"odometer":100}"""), sample("2026-11-26T00:00:30Z", """{"batteryVoltage":351.0,"batteryTemperature":25,"odometer":101}"""))
         val report = BatteryHistoryAnalyzer.analyze(history)
-        assertEquals(2, report.metrics.size)
+        assertEquals(3, report.metrics.size)
+        assertTrue(report.metrics.any { it.path == "SOC" && it.latest == 70.0 })
         assertTrue(report.metrics.any { it.path == "batteryVoltage" && it.latest == 351.0 })
     }
 
