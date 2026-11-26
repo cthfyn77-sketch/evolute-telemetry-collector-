@@ -19,7 +19,7 @@ class RangeEstimatorTest {
     }
 
     @Test fun interpolatesSocAtEachOneKilometerBoundary() {
-        val history = listOf(snapshot(100.0, 0.0), snapshot(98.0, 5.0))
+        val history = listOf(snapshot(100.0, 0.0, 0), snapshot(98.0, 5.0, 2))
         assertEquals(245.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
