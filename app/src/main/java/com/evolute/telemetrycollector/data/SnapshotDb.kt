@@ -15,7 +15,9 @@ data class TelemetrySnapshot(
     val sensorsJson: String
 )
 
-data class RangeHistoryPoint(val capturedAt: String, val odometer: Double, val stockRange: Double?, val calculatedRange: Double)\n\nclass SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
+data class RangeHistoryPoint(val capturedAt: String, val odometer: Double, val stockRange: Double?, val calculatedRange: Double)
+
+class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_collector.sqlite", null, 2) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("""CREATE TABLE snapshots(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
