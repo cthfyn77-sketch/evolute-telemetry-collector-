@@ -50,7 +50,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
 
     /**
      * Starts from the first observed odometer value, interpolates SOC at each
-     * successive 1 km boundary, and publishes a moving average after every 5 km.
+     * successive 1 km boundary, and publishes a moving average after every 1 km.
      */
     fun insert(t: ApiClient.Telemetry) {
         val db = writableDatabase
@@ -139,19 +139,18 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c,"evolute_c
             db.insertWithOnConflict("range_km_samples", null, sample, SQLiteDatabase.CONFLICT_REPLACE)
             last = Triple(nextIndex, boundaryOdometer, socAtBoundary)
 
-            if (nextIndex % 5L == 0L) {
-                val recent: List<Double>? = db.rawQuery(
-                    "SELECT soc_consumed FROM range_km_samples WHERE km_index>? AND km_index<=? ORDER BY km_index",
-                    arrayOf((nextIndex - 5L).toString(), nextIndex.toString())
+            if (true) {
+                // Latest eight valid one-kilometre intervals; charging/invalid
+                // intervals are excluded rather than counted as zero consumption.
+                val recent: List<Double> = db.rawQuery(
+                    "SELECT soc_consumed FROM range_km_samples WHERE km_index<=? AND soc_consumed IS NOT NULL ORDER BY km_index DESC LIMIT 8",
+                    arrayOf(nextIndex.toString())
                 ).use { c ->
                     val values = mutableListOf<Double>()
-                    while (c.moveToNext()) {
-                        if (c.isNull(0)) return@use null
-                        values.add(c.getDouble(0))
-                    }
-                    if (values.size == 5) values else null
+                    while (c.moveToNext()) values.add(c.getDouble(0))
+                    values
                 }
-                if (recent != null && recent.average() > 0.0001) {
+                if (recent.size == 8 && recent.average() > 0.0001) {
                     val average = recent.average()
                     val estimate = (socAtBoundary / average).coerceAtLeast(0.0)
                     val values = ContentValues().apply {
