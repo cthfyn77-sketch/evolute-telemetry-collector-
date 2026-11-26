@@ -855,7 +855,7 @@ class MainActivity : Activity() {
         val details = sessions.take(5).joinToString("\n") { session ->
             val started = formatter.format(java.time.Instant.parse(session.startedAt))
             val ended = formatter.format(java.time.Instant.parse(session.endedAt))
-            "${started}–${ended} · ${percent(session.startSoc)}→${percent(session.endSoc)}% · +${percent(session.addedSocPercent)} п.п. · ${session.durationMinutes} мин
+            "${started}–${ended} · ${percent(session.startSoc)}→${percent(session.endSoc)}% · +${percent(session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
         }
         chargingHistoryValue.text = "$summary\n$averages\n$peak\n$details"
     }
