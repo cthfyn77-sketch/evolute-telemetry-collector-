@@ -44,7 +44,12 @@ internal object TripHistoryAnalyzer {
             val startTime = try { Instant.parse(start.capturedAt) } catch (_: Exception) { return }
             val endTime = try { Instant.parse(end.capturedAt) } catch (_: Exception) { return }
             val duration = Duration.between(startTime, endTime).seconds.coerceAtLeast(0)
-            val socUsed = (start.soc - end.soc).takeIf { it.isFinite() && it in 0.0..100.0 }
+            // SOC endpoints must each be valid; a plausible difference between two
+            // out-of-range readings is not a trustworthy consumption measurement.
+            val socUsed = if (start.soc.isFinite() && end.soc.isFinite() &&
+                start.soc in 0.0..100.0 && end.soc in 0.0..100.0) {
+                (start.soc - end.soc).takeIf { it.isFinite() && it in 0.0..100.0 }
+            } else null
             trips.add(TripSummary(start.capturedAt, end.capturedAt, distance, duration, socUsed))
         }
 
