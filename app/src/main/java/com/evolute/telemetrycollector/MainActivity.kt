@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     private lateinit var rangeValue: TextView
     private lateinit var calculatedRangeValue: TextView
     private lateinit var calculatedRangeHint: TextView
+    private lateinit var rangeHistoryChart: RangeHistoryChartView
     private lateinit var consumptionValue: TextView
     private lateinit var odometerValue: TextView
     private lateinit var batteryMetricsValue: TextView
@@ -276,6 +277,19 @@ class MainActivity : Activity() {
         })
         rangeCard.addView(rangeColumns)
         content.addView(rangeCard)
+
+        addGap(content, 10)
+        val rangeHistoryCard = card()
+        rangeHistoryCard.addView(text("ИСТОРИЯ ЗАПАСА ХОДА", 10f, muted, true))
+        addGap(rangeHistoryCard, 5)
+        rangeHistoryCard.addView(row().apply {
+            addView(text("● Штатный", 9f, Color.rgb(96, 165, 250)))
+            addView(text("    ● Наш расчёт", 9f, accent))
+        })
+        addGap(rangeHistoryCard, 5)
+        rangeHistoryChart = RangeHistoryChartView(this)
+        rangeHistoryCard.addView(rangeHistoryChart, LinearLayout.LayoutParams(-1, dp(132)))
+        content.addView(rangeHistoryCard)
 
         addGap(content, 10)
         val consumptionCard = card()
@@ -609,6 +623,7 @@ class MainActivity : Activity() {
             params.width = (trackWidth * (currentSoc / 100.0)).toInt()
             socBar.layoutParams = params
         }
+        rangeHistoryChart.setSnapshots(db.recentSnapshots(240))
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
             val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
