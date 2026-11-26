@@ -137,3 +137,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Expands the history analyzer to retain numeric climate/HVAC setpoint and cabin-air temperature fields.
 - Displays up to 10 prioritized charts so the new climate graphs are not hidden.
 - Android version: 0.16.0 (versionCode 16).
+
+
+## v143 — trip consumption analytics
+
+- Adds completed-trip statistics: trip count and total reconstructed distance.
+- Calculates weighted SOC consumption per 100 km from completed trips of at least 1 km with a valid positive SOC decrease.
+- Adds a compact chart for the latest eight trips with reliable SOC measurements.
+- Keeps the existing 15-minute stop detection, telemetry-outage protection and raw SQLite snapshots unchanged.
+- Short trips below 1 km and trips without reliable SOC change remain visible in trip history but are excluded from consumption averages.
+- Release version: 0.18.0 (versionCode 18).
