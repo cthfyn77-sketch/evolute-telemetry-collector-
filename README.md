@@ -98,3 +98,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Sustained changes remain visible. Missing-data intervals are not bridged.
 - A quality alert identifies each excluded isolated spike.
 - Release version: 0.12.0 (versionCode 12).
+
+
+## v138 — odometer anomaly protection
+
+- Removes an isolated odometer jump from derived trip and range calculations only when the next reading returns within 0.1 km of the previous reading and both intervals are no longer than three minutes.
+- Sustained odometer changes are preserved; the sanitizer never joins readings across a telemetry outage.
+- Original snapshots remain intact in SQLite and CSV exports.
+- Release version: 0.13.0 (versionCode 13).
