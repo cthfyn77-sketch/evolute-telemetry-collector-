@@ -173,3 +173,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds a regression test for the unchanged-odometer recovery case.
 - Raw SQLite snapshots and CSV export remain unchanged.
 - Release version: 0.21.0 (versionCode 21).
+
+
+## v147 — EVACONNECT session recovery
+
+- When EVACONNECT rejects the refresh token, the collector identifies this as an authentication failure and stops retrying every 30 seconds.
+- The foreground notification reports that a new sign-in is required.
+- Adds a confirmed dashboard action to stop collection and clear only the encrypted session tokens; local SQLite telemetry and trip history are preserved.
+- Adds Python bridge regression coverage for unrecoverable authentication errors.
+- Corrects the range fallback hint to match the estimator's complete 1-km intervals.
+- Release version: 0.22.0 (versionCode 22).
