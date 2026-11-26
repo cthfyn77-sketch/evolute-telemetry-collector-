@@ -132,4 +132,19 @@ class RangeEstimatorTest {
         assertNull(RangeEstimator.consumptionPer100Km(history))
     }
 
+
+    @Test fun keepsRangeWindowWhenTelemetryGapIsExactlyThreeMinutes() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T08:00:00Z", 100.0, 0.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:01:00Z", 99.5, 1.0, null, true, true, "{}"),
+            // Exactly 180 seconds is not a gap; the rule resets only above 180 seconds.
+            TelemetrySnapshot("2026-11-26T08:04:00Z", 99.5, 1.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:05:00Z", 99.1, 2.0, null, true, true, "{}")
+        )
+
+        // Both valid intervals remain in the rolling window: average 0.45%/km.
+        assertEquals(220.222222, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(45.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
 }
