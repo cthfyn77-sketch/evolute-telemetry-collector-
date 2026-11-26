@@ -845,15 +845,18 @@ class MainActivity : Activity() {
             chargingHistoryValue.text = "Зарядные сессии пока не обнаружены. Нужен устойчивый рост SOC при стоянке."
             return
         }
-        val totalAdded = sessions.sumOf { it.addedSocPercent }
+        val stats = com.evolute.telemetrycollector.data.ChargingSessionSummary.from(sessions)
         val formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
             .withZone(java.time.ZoneId.systemDefault())
-        val summary = "Сессий: ${sessions.size} · суммарный прирост: ${String.format(java.util.Locale.US, "%.1f", totalAdded)} п.п. SOC"
+        fun percent(value: Double) = String.format(java.util.Locale.US, "%.1f", value)
+        val summary = "Сессий: ${stats.sessionCount} · суммарный прирост: ${percent(stats.totalAddedSocPercent)} п.п. SOC"
+        val averages = "В среднем за сессию: +${percent(stats.averageAddedSocPercent)} п.п. · наблюдаемый интервал роста SOC: ${stats.totalGrowthMinutes} мин"
+        val peak = "Наибольший прирост за сессию: +${percent(stats.largestSessionGainPercent)} п.п."
         val details = sessions.take(5).joinToString("\n") { session ->
             val date = formatter.format(java.time.Instant.parse(session.startedAt))
-            "${date} · ${String.format(java.util.Locale.US, "%.1f", session.startSoc)}→${String.format(java.util.Locale.US, "%.1f", session.endSoc)}% · +${String.format(java.util.Locale.US, "%.1f", session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
+            "${date} · ${percent(session.startSoc)}→${percent(session.endSoc)}% · +${percent(session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
         }
-        chargingHistoryValue.text = "$summary\n$details"
+        chargingHistoryValue.text = "$summary\n$averages\n$peak\n$details"
     }
 
     private fun formatDataFreshness(
