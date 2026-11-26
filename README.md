@@ -243,3 +243,13 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds a regression test with a stationary outage and a large SOC change; only post-recovery kilometre intervals contribute to the range estimate.
 - Trip and charging-session reconstruction, telemetry collection, raw snapshots, CSV export and charts are unchanged.
 - Release version: 0.31.0 (versionCode 31).
+
+
+## v161 — range estimator reset protection
+
+- A genuine odometer rollback starts a fresh measurement baseline and clears the previous rolling SOC-consumption window.
+- Any SOC rise of at least 0.2 percentage points resets the active kilometre interval and rolling window, including a rise while moving (for example, regenerative braking).
+- A stationary charging rise also clears pre-charge consumption samples so the first post-charge estimate is based only on post-charge driving.
+- Adds regression coverage for odometer rollback, SOC rise while moving, and the first valid interval after charging.
+- Raw telemetry snapshots, CSV export, trip reconstruction, charging-session reconstruction, API access and the permanent APK signing configuration remain unchanged.
+- Release version: 0.32.0 (versionCode 32).
