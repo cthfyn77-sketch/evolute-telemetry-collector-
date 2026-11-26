@@ -192,3 +192,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Keeps trip boundaries, SOC consumption validation, the 1-km range estimator, telemetry collection and stored snapshots unchanged.
 - Maximum speed is not shown because the current verified telemetry mapping does not identify a trustworthy vehicle-speed sensor field.
 - Release version: 0.24.0 (versionCode 24).
+
+
+## v153 — charging session summary
+
+- Extends the local charging-session card with average SOC gain per session and the largest detected session gain.
+- Shows the sum of observed SOC-rise intervals separately from physical plug-in time; the app does not infer a charger connection or energy in kWh.
+- Keeps the existing stationary-SOC-rise detection, five-session detail list, raw snapshots and CSV export unchanged.
+- Release version: 0.26.0 (versionCode 26).
