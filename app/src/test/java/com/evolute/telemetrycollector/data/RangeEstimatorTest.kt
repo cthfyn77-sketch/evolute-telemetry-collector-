@@ -88,6 +88,22 @@ class RangeEstimatorTest {
         assertEquals(194.5, RangeEstimator.estimate(partial)!!, 0.001)
     }
 
+    @Test fun resetsConsumptionWindowAfterStationaryTelemetryGap() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T08:00:00Z", 100.0, 0.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T08:02:00Z", 99.5, 1.0, null, true, true, "{}"),
+            // The car is stationary during the outage, but SOC changes substantially.
+            TelemetrySnapshot("2026-11-26T08:20:00Z", 80.0, 1.0, null, true, true, "{}")
+        ) + (1..5).map { km ->
+            TelemetrySnapshot(Instant.parse("2026-11-26T08:20:00Z").plusSeconds(km * 60L).toString(),
+                80.0 - km * 0.4, 1.0 + km, null, true, true, "{}")
+        }
+
+        // Only the five post-outage intervals (0.4%/km) may influence the estimate.
+        assertEquals(195.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
     @Test fun resetsConsumptionWindowAfterLongTelemetryGap() {
         val history = listOf(
             TelemetrySnapshot("2026-11-26T08:00:00Z", 100.0, 0.0, null, true, true, "{}"),

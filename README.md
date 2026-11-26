@@ -234,3 +234,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - The complete analytics history is queried in chronological database order; display charts retain their existing bounded history windows.
 - Trip and charging-session detection rules, telemetry collection, raw database records, CSV export, charts and range estimation remain unchanged.
 - Release version: 0.30.0 (versionCode 30).
+
+
+## v158 — range estimator reset after stationary telemetry outages
+
+- Resets the SOC/km measurement baseline after every telemetry gap longer than three minutes, including gaps where the odometer remains unchanged.
+- Prevents SOC changes observed across a missing-data period from contaminating the first kilometre interval after telemetry recovery.
+- Adds a regression test with a stationary outage and a large SOC change; only post-recovery kilometre intervals contribute to the range estimate.
+- Trip and charging-session reconstruction, telemetry collection, raw snapshots, CSV export and charts are unchanged.
+- Release version: 0.31.0 (versionCode 31).

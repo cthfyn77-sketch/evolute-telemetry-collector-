@@ -55,8 +55,10 @@ internal object RangeEstimator {
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
 
-            // Never interpolate across a period when telemetry was unavailable.
-            if (isTelemetryGap(previous, current) && distance > EPSILON) {
+            // Any telemetry outage invalidates the previous measurement baseline,
+            // including when the vehicle was stationary during the missing period.
+            // Never carry SOC consumption or kilometre checkpoints across an outage.
+            if (isTelemetryGap(previous, current)) {
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
                 nextCheckpoint = baselineDistance + STEP_KM
