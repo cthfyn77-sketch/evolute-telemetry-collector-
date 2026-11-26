@@ -57,10 +57,10 @@ internal object TripHistoryAnalyzer {
             val (previousAt, previous) = ordered[index - 1]
             val (currentAt, current) = ordered[index]
 
-            // Never infer a precise trip segment or SOC consumption across a telemetry outage.
-            // Discard the incomplete segment and use the recovered sample as a new baseline.
-            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS &&
-                current.odometer - previous.odometer > MOVEMENT_EPSILON_KM) {
+            // A telemetry outage makes the missing movement and SOC history unknowable.
+            // Always discard the incomplete trip segment, even if the odometer is unchanged
+            // on the first recovered sample; that sample becomes the next baseline.
+            if (currentAt - previousAt > TELEMETRY_GAP_MILLIS) {
                 active = null
                 lastMovementAt = 0L
                 continue
