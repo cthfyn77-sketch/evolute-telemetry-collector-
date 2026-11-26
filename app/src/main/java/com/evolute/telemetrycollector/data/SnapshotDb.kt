@@ -5,6 +5,15 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
+/**
+ * Escapes one CSV field according to RFC 4180.
+ * Fields containing delimiters, quotes or line breaks are quoted; embedded quotes are doubled.
+ */
+internal fun csvField(value: String): String {
+    if (value.none { it == ',' || it == '"' || it == '\r' || it == '\n' }) return value
+    return "\"" + value.replace("\"", "\"\"") + "\""
+}
+
 data class TelemetrySnapshot(
     val capturedAt: String,
     val soc: Double,
@@ -109,18 +118,20 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"
-        return "Время: ${item.capturedAt}\nSOC: ${item.soc}%\nОдометр: ${item.odometer} км\nШтатный запас: ${item.stockRange?.let { "$it км" } ?: "—"}\nОнлайн: ${item.online}; готовность: ${item.ready}"
+        return "Время: ${item.capturedAt}\\nSOC: ${item.soc}%\\nОдометр: ${item.odometer} км\\nШтатный запас: ${item.stockRange?.let { "${it} км" } ?: "—"}\\nОнлайн: ${item.online}; готовность: ${item.ready}"
     }
 
     fun exportCsv(out: java.io.OutputStream) {
         out.writer(Charsets.UTF_8).use { w ->
-            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json\n")
+            w.write("captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json\\r\\n")
             readableDatabase.rawQuery(
                 "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id", null
             ).use { c ->
                 while (c.moveToNext()) {
-                    val row = (0..7).joinToString(",") { i -> if (c.isNull(i)) "" else c.getString(i) }
-                    w.write(row + "\n")
+                    val row = (0..7).joinToString(",") { i ->
+                        if (c.isNull(i)) "" else csvField(c.getString(i))
+                    }
+                    w.write(row + "\\r\\n")
                 }
             }
         }
