@@ -182,8 +182,6 @@ class RangeEstimatorTest {
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(shuffled)!!, 0.001)
     }
 
-}
-
 
     @Test fun ignoresOdometerReversalWithoutBridgingOrDoubleCountingIntervals() {
         val history = listOf(
@@ -199,3 +197,5 @@ class RangeEstimatorTest {
         assertEquals(175.777778, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(45.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
+
+}
