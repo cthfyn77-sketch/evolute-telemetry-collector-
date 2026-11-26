@@ -183,3 +183,19 @@ class RangeEstimatorTest {
     }
 
 }
+
+
+    @Test fun ignoresOdometerReversalWithoutBridgingOrDoubleCountingIntervals() {
+        val history = listOf(
+            snapshot(80.0, 0.0, 0),
+            snapshot(79.5, 1.0, 1),
+            // A reversed odometer sample must not create a negative-distance interval.
+            snapshot(78.0, 0.5, 2),
+            snapshot(79.1, 2.0, 3)
+        )
+
+        // The 0–1 km interval consumes 0.5%; the reversal is ignored;
+        // the next completed checkpoint consumes 0.4%. Average = 0.45%/km.
+        assertEquals(175.777778, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(45.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
