@@ -55,13 +55,9 @@ internal object RangeEstimator {
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
 
-            // Any telemetry outage invalidates the previous measurement baseline,
-            // including when the vehicle was stationary during the missing period.
-            // Never carry SOC consumption or kilometre checkpoints across an outage.
+            // Any telemetry outage invalidates the active interval and rolling
+            // window. Never carry consumption across missing samples.
             if (isTelemetryGap(previous, current)) {
-                // A gap invalidates both the active interval and the rolling
-                // consumption window: pre-outage driving must not affect the
-                // first estimate after telemetry has recovered.
                 validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
@@ -69,16 +65,29 @@ internal object RangeEstimator {
                 continue
             }
 
-            // A stationary SOC increase starts a new post-charge baseline.
-            if (kotlin.math.abs(distance) <= EPSILON &&
-                current.soc - previous.soc >= CHARGE_RISE_SOC) {
+            // A true odometer rollback starts a new independent distance epoch.
+            // Keeping the old checkpoint would otherwise stall sampling until
+            // the odometer climbed back to its former value.
+            if (distance < -EPSILON) {
+                validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
                 nextCheckpoint = baselineDistance + STEP_KM
                 continue
             }
 
-            // Ignore parking samples and odometer reversals.
+            // Any meaningful SOC rise resets the partial interval and rolling
+            // window. This covers stationary charging and moving regeneration;
+            // neither should be blended into a discharge-consumption interval.
+            if (current.soc - previous.soc >= CHARGE_RISE_SOC) {
+                validIntervalConsumptions.clear()
+                baselineDistance = current.odometer
+                baselineSoc = current.soc
+                nextCheckpoint = baselineDistance + STEP_KM
+                continue
+            }
+
+            // Ignore parking samples and tiny odometer noise.
             if (distance <= EPSILON) continue
 
             while (nextCheckpoint <= current.odometer + EPSILON) {
