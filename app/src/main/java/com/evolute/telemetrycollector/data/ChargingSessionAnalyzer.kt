@@ -70,7 +70,6 @@ internal object ChargingSessionAnalyzer {
                 latest = current
             } else if (start != null) {
                 if (rise < -MIN_SOC_RISE) finish()
-                else latest = current
             }
         }
         finish()
