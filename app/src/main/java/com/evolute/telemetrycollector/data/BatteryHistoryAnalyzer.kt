@@ -20,7 +20,7 @@ internal object BatteryHistoryAnalyzer {
         val points: List<MetricPoint>
     )
     data class Report(val metrics: List<MetricHistory>, val alerts: List<String>)
-    private val terms = listOf("voltage", "volt", "temperature", "temp", "coolant", "cabin", "interior", "salon", "ambient", "outside", "outdoor", "soh", "stateofhealth", "batteryhealth", "current", "amp", "soc", "stateofcharge", "chargelevel")
+    private val terms = listOf("voltage", "volt", "temperature", "temp", "coolant", "cabin", "interior", "salon", "ambient", "outside", "outdoor", "climate", "hvac", "setpoint", "settemp", "targettemp", "desiredtemp", "airtemp", "soh", "stateofhealth", "batteryhealth", "current", "amp", "soc", "stateofcharge", "chargelevel")
 
     fun analyze(history: List<TelemetrySnapshot>): Report {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
