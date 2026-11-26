@@ -102,6 +102,23 @@ class TripHistoryAnalyzerTest {
         assertEquals(43.333, stats.averagePercentPer100Km!!, 0.01)
     }
 
+    @Test fun rejectsConsumptionWhenSocEndpointsAreOutsideValidRange() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 105.0, 1000.0),
+            sample(1, 103.0, 1000.5),
+            sample(2, 100.0, 1001.0),
+            sample(3, 100.0, 1001.0),
+            sample(18, 100.0, 1001.0)
+        ))
+        assertEquals(1, trips.size)
+        assertNull(trips[0].socUsedPercent)
+
+        val stats = TripConsumptionAnalyzer.summarize(trips)
+        assertEquals(1, stats.tripCount)
+        assertEquals(0, stats.measuredTrips)
+        assertNull(stats.averagePercentPer100Km)
+    }
+
     @Test fun returnsNoAverageWhenTripsHaveNoReliableSocMeasurement() {
         val trips = listOf(
             TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 8.0, 600, null),
