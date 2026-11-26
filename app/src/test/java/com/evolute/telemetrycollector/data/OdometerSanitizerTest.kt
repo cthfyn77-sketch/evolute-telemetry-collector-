@@ -6,7 +6,7 @@ import org.junit.Test
 class OdometerSanitizerTest {
     private fun sample(second: Int, odo: Double, soc: Double = 80.0) =
         TelemetrySnapshot(
-            "2026-11-26T10:00:${second.toString().padStart(2, '0')}Z",
+            java.time.Instant.parse("2026-11-26T10:00:00Z").plusSeconds(second.toLong()).toString(),
             soc, odo, null, true, true, "{}"
         )
 
