@@ -238,7 +238,7 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 
 ## v158 — range estimator reset after stationary telemetry outages
 
-- Resets the SOC/km measurement baseline after every telemetry gap longer than three minutes, including gaps where the odometer remains unchanged.
+- Resets the SOC/km measurement baseline after every telemetry gap longer than 180 seconds, including gaps where the odometer remains unchanged.
 - Prevents SOC changes observed across a missing-data period from contaminating the first kilometre interval after telemetry recovery.
 - Adds a regression test with a stationary outage and a large SOC change; only post-recovery kilometre intervals contribute to the range estimate.
 - Trip and charging-session reconstruction, telemetry collection, raw snapshots, CSV export and charts are unchanged.
