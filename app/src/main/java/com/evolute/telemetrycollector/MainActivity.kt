@@ -56,9 +56,7 @@ class MainActivity : Activity() {
     private lateinit var dashboardBadge: TextView
     private lateinit var vehicleStateValue: TextView
     private lateinit var dataFreshnessValue: TextView
-    private lateinit var distanceChart: TelemetryChartView
     private lateinit var timeChart: TelemetryChartView
-    private lateinit var distanceChartCard: LinearLayout
     private lateinit var timeChartCard: LinearLayout
     private lateinit var tripHistoryCard: LinearLayout
     private lateinit var tripHistoryValue: TextView
@@ -330,16 +328,6 @@ class MainActivity : Activity() {
         content.addView(apiFieldsCard)
 
         addGap(content, 12)
-        distanceChartCard = card()
-        distanceChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ПРОБЕГА", 11f, accent, true))
-        addGap(distanceChartCard, 5)
-        distanceChartCard.addView(text("Изменение процента заряда по пройденным километрам", 9f, muted))
-        addGap(distanceChartCard, 8)
-        distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
-        distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
-        content.addView(distanceChartCard)
-
-        addGap(content, 10)
         timeChartCard = card()
         timeChartCard.addView(text("SOC · ЗАВИСИМОСТЬ ОТ ВРЕМЕНИ", 11f, Color.rgb(96, 165, 250), true))
         addGap(timeChartCard, 5)
@@ -556,15 +544,35 @@ class MainActivity : Activity() {
             renderTripHistory(db.allSnapshots())
             lastTripHistoryRecordCount = snapshotCount
         }
-        // Mileage chart spans previous trips too; parking never hides its card.
-        val mileageHistory = db.allSnapshots(20000)
+        // SOC history is shown over time; battery sensor charts remain independent.
         val recentHistory = db.recentSnapshots(240)
-        distanceChartCard.visibility = View.VISIBLE
         timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
-        distanceChart.setSnapshots(mileageHistory)
         timeChart.setSnapshots(recentHistory)
     }
 
+
+    /** Convert common battery sensor JSON paths into readable Russian chart titles. */
+    private fun batteryMetricDisplayName(path: String): String {
+        val key = path.lowercase(java.util.Locale.ROOT)
+            .replace(Regex("[^a-zа-я0-9]"), "")
+        return when {
+            listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } ->
+                "Напряжение батареи"
+            listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } ->
+                "Ток батареи"
+            listOf("temperature", "temp", "batter ytemperature").any { key.contains(it) } ->
+                "Температура батареи"
+            listOf("soh", "stateofhealth", "batteryhealth", "health").any { key.contains(it) } ->
+                "Состояние батареи (SOH)"
+            listOf("soc", "stateofcharge", "chargelevel").any { key.contains(it) } ->
+                "Уровень заряда (SOC)"
+            key.contains("power") -> "Мощность батареи"
+            key.contains("capacity") -> "Ёмкость батареи"
+            key.contains("energy") -> "Энергия батареи"
+            key.contains("resistance") -> "Сопротивление батареи"
+            else -> path
+        }
+    }
 
     private fun renderBatteryMetricCharts(metrics: List<BatteryHistoryAnalyzer.MetricHistory>) {
         batteryHistoryCharts.removeAllViews()
@@ -577,7 +585,7 @@ class MainActivity : Activity() {
         }
         metrics.take(8).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
-            batteryHistoryCharts.addView(text(metric.path, 10f, accent, true))
+            batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
             addGap(batteryHistoryCharts, 3)
             val summary = text(
                 "Сейчас " + String.format(java.util.Locale.US, "%.2f", metric.latest) +
