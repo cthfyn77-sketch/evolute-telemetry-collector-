@@ -147,3 +147,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Keeps the existing 15-minute stop detection, telemetry-outage protection and raw SQLite snapshots unchanged.
 - Short trips below 1 km and trips without reliable SOC change remain visible in trip history but are excluded from consumption averages.
 - Release version: 0.18.0 (versionCode 18).
+
+
+## v144 — SOC versus mileage chart
+
+- Restores a dedicated SOC-versus-odometer chart on the dashboard, alongside the existing SOC-versus-time chart.
+- The mileage chart uses the full locally stored snapshot history and collapses repeated stationary samples; the time chart remains limited to the latest 240 snapshots.
+- Both charts keep independent horizontal axes and use the existing telemetry chart renderer.
+- No changes to telemetry collection, range estimation, trip reconstruction, or raw stored snapshots.
+- Release version: 0.19.0 (versionCode 19).
