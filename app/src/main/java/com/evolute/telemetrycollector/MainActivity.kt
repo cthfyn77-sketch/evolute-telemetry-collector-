@@ -39,7 +39,7 @@ class MainActivity : Activity() {
         root.addView(btn("Экспорт CSV") { startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/csv").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"evolute-telemetry.csv"),csvRequest) })
         label("Состояние сбора (обновляется автоматически)"); status=TextView(this).apply { textSize=14f }; root.addView(status)
         label("Результат последнего действия"); actionStatus=TextView(this).apply { textSize=14f }; root.addView(actionStatus)
-        root.addView(TextView(this).apply { text="Только чтение API. Команды автомобилю не отправляются. Расчёта запаса хода нет."; textSize=12f; setPadding(0,18,0,0) })
+        root.addView(TextView(this).apply { text="Только чтение API. Команды автомобилю не отправляются. Расход и прогноз обновляются каждый километр по среднему последних 8 валидных интервалов."; textSize=12f; setPadding(0,18,0,0) })
         setContentView(ScrollView(this).apply { addView(root,ViewGroup.LayoutParams(-1,-2)) }); refreshStatus()
     }
     private fun btn(t:String,action:()->Unit)=Button(this).apply { text=t; setOnClickListener { action() } }
