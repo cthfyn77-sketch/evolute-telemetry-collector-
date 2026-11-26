@@ -39,26 +39,23 @@ class SnapshotDbTest {
         assertTrue(latest.contains("Онлайн: true; готовность: false"))
     }
 
-    @Test fun smoothsPerKilometreConsumptionAndPublishesEstimateAtFiveKm() {
+    @Test fun publishesEstimateAfterEightValidOneKmIntervalsAndUpdatesEveryKilometre() {
         db.insert(ApiClient.Telemetry(100.0, 0.4, 300.0, true, true, null))
-        for (km in 1..4) {
+        for (km in 1..7) {
             db.insert(ApiClient.Telemetry(100.0 - km, 0.4 + km, 300.0, true, true, null))
-            // Stationary 30-second polls must not clear the kilometre history.
             db.insert(ApiClient.Telemetry(100.0 - km, 0.4 + km, 300.0, true, true, null))
         }
-
         assertTrue(db.latest().contains("Расчётный запас: накапливаем данные"))
-        db.insert(ApiClient.Telemetry(95.0, 5.4, 280.0, true, true, null))
-
-        val latest = db.latest()
-        assertTrue(latest.contains("Расчётный запас: 95.0 км"))
+        db.insert(ApiClient.Telemetry(92.0, 8.4, 280.0, true, true, null))
+        var latest = db.latest()
+        assertTrue(latest.contains("Расчётный запас: 92.0 км"))
         assertTrue(latest.contains("сглаженный расход 1.000%/км"))
-        assertTrue(latest.contains("Штатный запас: 280.0 км"))
 
-        // The smoothed consumption stays fixed between 5 km updates, but range
-        // is recalculated from the latest SOC on every status refresh.
-        db.insert(ApiClient.Telemetry(90.0, 5.4, 260.0, true, true, null))
-        assertTrue(db.latest().contains("Расчётный запас: 90.0 км"))
+        // The estimate refreshes on the very next completed kilometre.
+        db.insert(ApiClient.Telemetry(91.0, 9.4, 260.0, true, true, null))
+        latest = db.latest()
+        assertTrue(latest.contains("Расчётный запас: 91.0 км"))
+        assertTrue(latest.contains("обновлено на одометре 9.4 км"))
     }
 
     @Test fun exportsStoredRowsAsCsv() {
