@@ -17,8 +17,8 @@ android {
         applicationId = "com.evolute.telemetrycollector"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.19.0"
+        versionCode = 20
+        versionName = "0.20.0"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
