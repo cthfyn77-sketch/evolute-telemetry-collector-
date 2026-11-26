@@ -17,17 +17,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Prepare persistent APK signing key
+      - name: Restore existing Evolute release keystore
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
-          test -n "$SIGNING_KEYSTORE_BASE64" || { echo "Missing GitHub secret SIGNING_KEYSTORE_BASE64"; exit 1; }
-          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/ci-signing.jks
-          test -s app/ci-signing.jks
+          test -n "$SIGNING_KEYSTORE_BASE64" || { echo "Missing SIGNING_KEYSTORE_BASE64"; exit 1; }
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > app/evolute-release.jks
+          test -s app/evolute-release.jks
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build debug APK
+      - name: Build signed release APK
         env:
           SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -36,10 +36,22 @@ jobs:
           test -n "$SIGNING_KEYSTORE_PASSWORD"
           test -n "$SIGNING_KEY_ALIAS"
           test -n "$SIGNING_KEY_PASSWORD"
-          gradle assembleDebug
-      - name: Upload APK
+          test "$SIGNING_KEY_ALIAS" = "evolute"
+          gradle assembleRelease
+      - name: Verify APK signature
+        run: |
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
+          ACTUAL="$(sed -n 's/.*certificate SHA-256 digest: //p' /tmp/apk-signature.txt | head -n 1 | tr '[:lower:]' '[:upper:]' | tr -d ':')"
+          EXPECTED="EE10DBF808F3362A5BC1A987A9C6C155A770C21E7BFCC53E2F482225C7BA8BCF"
+          test "$ACTUAL" = "$EXPECTED" || { echo "Unexpected signing certificate: $ACTUAL"; exit 1; }
+      - name: Upload signed release APK
         uses: actions/upload-artifact@v4
         with:
-          name: evolute-telemetry-collector-evaconnect-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: evolute-telemetry-collector-release-signed
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f app/evolute-release.jks
