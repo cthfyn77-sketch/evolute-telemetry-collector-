@@ -583,15 +583,34 @@ class MainActivity : Activity() {
             ))
             return
         }
-        metrics.take(8).forEachIndexed { index, metric ->
+        val prioritized = metrics.sortedBy { metric ->
+            val key = metric.path.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("[^a-z0-9]"), "")
+            when {
+                key == "soc" || key.contains("stateofcharge") || key.contains("chargelevel") -> 0
+                key.contains("soh") || key.contains("stateofhealth") || key.contains("batteryhealth") -> 1
+                else -> 2
+            }
+        }
+        prioritized.take(8).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
             addGap(batteryHistoryCharts, 3)
+            val hasGap = metric.points.zipWithNext().any {
+                java.time.Duration.between(it.first.at, it.second.at).toMinutes() > 10
+            }
+            val delta = metric.points.last().value - metric.points.first().value
+            val trend = if (metric.points.size >= 2 && !hasGap) {
+                " · изменение " + (if (delta > 0) "+" else "") +
+                    String.format(java.util.Locale.US, "%.2f", delta)
+            } else if (hasGap) {
+                " · есть пропуск данных"
+            } else ""
             val summary = text(
                 "Сейчас " + String.format(java.util.Locale.US, "%.2f", metric.latest) +
                     " · мин " + String.format(java.util.Locale.US, "%.2f", metric.min) +
                     " · макс " + String.format(java.util.Locale.US, "%.2f", metric.max) +
-                    " · " + metric.samples + " замеров",
+                    trend + " · " + metric.samples + " замеров",
                 9f, muted
             )
             batteryHistoryCharts.addView(summary)
@@ -599,9 +618,9 @@ class MainActivity : Activity() {
             val chart = BatteryMetricChartView(this).apply { setPoints(metric.points) }
             batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(112)))
         }
-        if (metrics.size > 8) {
+        if (prioritized.size > 8) {
             addGap(batteryHistoryCharts, 6)
-            batteryHistoryCharts.addView(text("Ещё " + (metrics.size - 8) + " параметров доступны в текстовой сводке выше.", 9f, muted))
+            batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 8) + " параметров доступны в текстовой сводке выше.", 9f, muted))
         }
     }
 
