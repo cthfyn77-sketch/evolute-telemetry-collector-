@@ -622,7 +622,7 @@ class MainActivity : Activity() {
             calculatedRangeHint.text = if (calculatedRange != null) {
                 "По среднему расходу SOC · последние 8 интервалов по 1 км"
             } else {
-                "Штатный прогноз · ожидание первого полного интервала 1 км"
+                "Штатный прогноз · ожидание 8 валидных интервалов по 1 км"
             }
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
