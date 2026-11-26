@@ -179,14 +179,13 @@ class RangeEstimatorTest {
         val history = (0..7).map { km ->
             snapshot(100.0 - km * 0.5, km.toDouble(), km)
         } + listOf(
-            snapshot(95.0, 7.0, 8),
-            snapshot(90.0, 7.0, 9),
-            snapshot(89.6, 8.0, 10)
+            // Stationary charge raises SOC from 96.5% to 100%.
+            snapshot(100.0, 7.0, 8),
+            snapshot(99.6, 8.0, 9)
         )
 
         // The single post-charge interval is used alone, not averaged with pre-charge data.
-        assertEquals(224.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(249.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
-
 }
