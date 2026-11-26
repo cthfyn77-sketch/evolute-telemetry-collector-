@@ -20,16 +20,32 @@ internal object BatteryHistoryAnalyzer {
         val points: List<MetricPoint>
     )
     data class Report(val metrics: List<MetricHistory>, val alerts: List<String>)
-    private val terms = listOf("voltage", "volt", "temperature", "temp", "soh", "stateofhealth", "batteryhealth", "current", "amp")
+    private val terms = listOf("voltage", "volt", "temperature", "temp", "soh", "stateofhealth", "batteryhealth", "current", "amp", "soc", "stateofcharge", "chargelevel")
 
     fun analyze(history: List<TelemetrySnapshot>): Report {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
         history.forEach { sample ->
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
-            extract(sample.sensorsJson).forEach { (path, value) -> points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value)) }
+            extract(sample.sensorsJson).forEach { (path, value) ->
+                points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value))
+            }
+            // SOC is stored as a first-class snapshot field, even when EVACONNECT
+            // does not expose it again inside the nested sensor JSON.
+            val sensorHasSoc = points.keys.any { key ->
+                key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
+                    it == "soc" || it.contains("stateofcharge") || it.contains("chargelevel")
+                }
+            }
+            if (!sensorHasSoc && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
+                points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc))
+            }
         }
-        val metrics = points.mapNotNull { (path, values) ->
-            if (values.isEmpty()) null else MetricHistory(path, values.last().value, values.minOf { it.value }, values.maxOf { it.value }, values.size, values.toList())
+        val metrics = points.mapNotNull { (path, rawValues) ->
+            val values = rawValues.sortedBy { it.at }
+            if (values.isEmpty()) null else MetricHistory(
+                path, values.last().value, values.minOf { it.value },
+                values.maxOf { it.value }, values.size, values.toList()
+            )
         }.sortedBy { it.path.lowercase(Locale.ROOT) }
         val alerts = mutableListOf<String>()
         points.forEach { (path, values) ->
@@ -50,7 +66,11 @@ internal object BatteryHistoryAnalyzer {
 
     fun render(report: Report): String {
         if (report.metrics.isEmpty()) return "История появится после получения числовых датчиков напряжения, тока, температуры или SOH."
-        val lines = report.metrics.take(12).map { m -> m.path + ": сейчас " + fmt(m.latest) + " · диапазон " + fmt(m.min) + "–" + fmt(m.max) + " · " + m.samples + " замеров" }.toMutableList()
+        val lines = report.metrics.take(12).map { m ->
+            val delta = m.points.last().value - m.points.first().value
+            val change = if (m.points.size >= 2) " · изменение за период " + signed(delta) else ""
+            m.path + ": сейчас " + fmt(m.latest) + " · диапазон " + fmt(m.min) + "–" + fmt(m.max) + change + " · " + m.samples + " замеров"
+        }.toMutableList()
         if (report.metrics.size > 12) lines.add("… ещё " + (report.metrics.size - 12) + " параметров")
         lines.add("")
         if (report.alerts.isNotEmpty()) { lines.add("СОБЫТИЯ КАЧЕСТВА ДАННЫХ"); lines.addAll(report.alerts) }
@@ -81,4 +101,5 @@ internal object BatteryHistoryAnalyzer {
         } catch (_: Exception) { emptyMap() }
     }
     private fun fmt(value: Double): String = String.format(Locale.US, "%.2f", value)
+    private fun signed(value: Double): String = (if (value > 0) "+" else "") + fmt(value)
 }
