@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     private lateinit var tripHistoryValue: TextView
     private lateinit var tripStatsValue: TextView
     private lateinit var tripConsumptionChart: TripConsumptionChartView
+    private lateinit var chargingHistoryValue: TextView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
@@ -401,6 +402,20 @@ class MainActivity : Activity() {
         content.addView(tripHistoryCard)
 
         addGap(content, 12)
+        val chargingCard = card()
+        chargingCard.addView(text("ИСТОРИЯ ЗАРЯДНЫХ СЕССИЙ", 12f, accent, true))
+        addGap(chargingCard, 6)
+        chargingCard.addView(text(
+            "По росту SOC при неподвижном автомобиле · только локально сохранённые снимки",
+            9f, muted
+        ))
+        addGap(chargingCard, 8)
+        chargingHistoryValue = text("Данные о зарядках появятся после накопления телеметрии", 10f, white)
+        chargingHistoryValue.setLineSpacing(dp(3).toFloat(), 1f)
+        chargingCard.addView(chargingHistoryValue)
+        content.addView(chargingCard)
+
+        addGap(content, 12)
         val collection = card()
         collection.addView(row().apply {
             addView(text("СБОР ТЕЛЕМЕТРИИ", 12f, white, true), LinearLayout.LayoutParams(0, -2, 1f))
@@ -642,7 +657,9 @@ class MainActivity : Activity() {
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
         if (snapshotCount != lastTripHistoryRecordCount) {
-            renderTripHistory(db.allSnapshots())
+            val fullHistory = db.allSnapshots()
+            renderTripHistory(fullHistory)
+            renderChargingHistory(fullHistory)
             lastTripHistoryRecordCount = snapshotCount
         }
         // Keep time and mileage axes independent: time uses recent samples,
@@ -820,6 +837,23 @@ class MainActivity : Activity() {
             } ?: ""
             "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate$speed"
         }
+    }
+
+    private fun renderChargingHistory(history: List<com.evolute.telemetrycollector.data.TelemetrySnapshot>) {
+        val sessions = com.evolute.telemetrycollector.data.ChargingSessionAnalyzer.analyze(history)
+        if (sessions.isEmpty()) {
+            chargingHistoryValue.text = "Зарядные сессии пока не обнаружены. Нужен устойчивый рост SOC при стоянке."
+            return
+        }
+        val totalAdded = sessions.sumOf { it.addedSocPercent }
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
+            .withZone(java.time.ZoneId.systemDefault())
+        val summary = "Сессий: ${sessions.size} · суммарный прирост: ${String.format(java.util.Locale.US, "%.1f", totalAdded)} п.п. SOC"
+        val details = sessions.take(5).joinToString("\\n") { session ->
+            val date = formatter.format(java.time.Instant.parse(session.startedAt))
+            "${date} · ${String.format(java.util.Locale.US, "%.1f", session.startSoc)}→${String.format(java.util.Locale.US, "%.1f", session.endSoc)}% · +${String.format(java.util.Locale.US, "%.1f", session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
+        }
+        chargingHistoryValue.text = "$summary\\n$details"
     }
 
     private fun formatDataFreshness(
