@@ -39,11 +39,6 @@ internal object BatteryHistoryAnalyzer {
             }
             // SOC is stored as a first-class snapshot field, even when EVACONNECT
             // does not expose it again inside the nested sensor JSON.
-            val sensorHasSoc = sensorValues.keys.any { key ->
-                key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
-                    it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
-                }
-            }
             if (!sensorSocExists && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
                 points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc))
             }
