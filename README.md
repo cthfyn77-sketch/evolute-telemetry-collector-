@@ -164,3 +164,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Trips with invalid SOC endpoints remain in the trip list and distance totals, but are excluded from measured-trip counts, consumption averages and the eight-trip chart.
 - The minimum 1-km threshold for consumption analytics, 15-minute stop detection, telemetry-outage protection and raw SQLite history remain unchanged.
 - Release version: 0.20.0 (versionCode 20).
+
+
+## v146 — strict trip boundary after telemetry outages
+
+- Any telemetry gap longer than three minutes ends the current reconstructed trip segment, even when the first recovered odometer reading is unchanged.
+- The first recovered sample is used only as a fresh baseline; distance and SOC consumption are never carried across the missing interval.
+- Adds a regression test for the unchanged-odometer recovery case.
+- Raw SQLite snapshots and CSV export remain unchanged.
+- Release version: 0.21.0 (versionCode 21).
