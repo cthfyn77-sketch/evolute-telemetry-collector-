@@ -32,7 +32,7 @@ Foreground service вызывает `EvoluteClient.default_car_id()` и `Evolute
 ## Ограничения безопасности
 - Package: `com.evolute.telemetrycollector` — не совпадает с приложением Range Monitor.
 - Никаких команд автомобилю, управления зарядкой или изменения настроек.
-- Расчётный запас хода строится по SOC на контрольных точках каждого километра; окно сглаживания — последние 5 км. До накопления истории показывается штатный запас хода.
+- Расчётный запас хода строится по фактическому расходу SOC на завершённых интервалах по 5 км; прогноз использует среднее последних восьми валидных интервалов. До накопления первого полного интервала показывается штатный запас хода.
 - Токены не включаются в исходный код, CSV или диагностические сообщения.
 - Данные остаются локально на устройстве; внешнего сервера проекта нет.
 
@@ -106,3 +106,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Sustained odometer changes are preserved; the sanitizer never joins readings across a telemetry outage.
 - Original snapshots remain intact in SQLite and CSV exports.
 - Release version: 0.13.0 (versionCode 13).
+
+## v139 — five-kilometre SOC consumption
+
+- Measures consumed SOC at each completed 5-km odometer interval.
+- Calculates average consumption from up to the latest eight valid intervals; partial intervals are not treated as completed measurements.
+- Estimates remaining range from the latest SOC and the rolling average SOC consumption per kilometre.
+- Resets the measurement baseline after a telemetry outage or a stationary charging event; odometer anomaly protection from v138 remains active.
+- Raw telemetry snapshots and CSV export remain unchanged.
+- Release version: 0.14.0 (versionCode 14).
