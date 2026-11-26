@@ -42,7 +42,9 @@ jobs:
         run: |
           APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
-          apksigner verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER" || { echo "Android apksigner not found"; exit 1; }
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee /tmp/apk-signature.txt
           ACTUAL="$(sed -n 's/.*certificate SHA-256 digest: //p' /tmp/apk-signature.txt | head -n 1 | tr '[:lower:]' '[:upper:]' | tr -d ':')"
           EXPECTED="EE10DBF808F3362A5BC1A987A9C6C155A770C21E7BFCC53E2F482225C7BA8BCF"
           test "$ACTUAL" = "$EXPECTED" || { echo "Unexpected signing certificate: $ACTUAL"; exit 1; }
