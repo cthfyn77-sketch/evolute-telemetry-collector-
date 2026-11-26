@@ -125,3 +125,14 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Orders the voltage/current/coolant/cabin/outside charts consistently; SOC and SOH remain prioritized.
 - Expands numeric sensor recognition for coolant, cabin and ambient temperature fields.
 - Release version: 0.15.0 (versionCode 15).
+
+
+## v141 — climate chart names
+
+- Based on the user-confirmed working v140.
+- Keeps the existing battery charts and adds distinct climate charts after the outside-temperature and battery-temperature charts:
+  - Климат — заданная температура
+  - Климат — температура в салоне
+- Expands the history analyzer to retain numeric climate/HVAC setpoint and cabin-air temperature fields.
+- Displays up to 10 prioritized charts so the new climate graphs are not hidden.
+- Android version: 0.16.0 (versionCode 16).
