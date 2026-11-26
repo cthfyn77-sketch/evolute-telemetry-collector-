@@ -156,3 +156,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Both charts keep independent horizontal axes and use the existing telemetry chart renderer.
 - No changes to telemetry collection, range estimation, trip reconstruction, or raw stored snapshots.
 - Release version: 0.19.0 (versionCode 19).
+
+
+## v145 — reliable trip SOC validation
+
+- A trip's SOC consumption is measured only when both the starting and ending SOC readings are finite and within 0–100%.
+- Trips with invalid SOC endpoints remain in the trip list and distance totals, but are excluded from measured-trip counts, consumption averages and the eight-trip chart.
+- The minimum 1-km threshold for consumption analytics, 15-minute stop detection, telemetry-outage protection and raw SQLite history remain unchanged.
+- Release version: 0.20.0 (versionCode 20).
