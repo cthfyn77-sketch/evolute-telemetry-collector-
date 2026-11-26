@@ -43,6 +43,7 @@ internal class BatteryMetricChartView(context: Context) : View(context) {
     fun setMileagePoints(next: List<BatteryHistoryAnalyzer.MetricPoint>) {
         mileageAxis = true
         points = next.filter { it.odometer != null && it.odometer.isFinite() && it.odometer >= 0.0 }
+            .sortedBy { it.odometer }
             .takeLast(480)
         invalidate()
     }
