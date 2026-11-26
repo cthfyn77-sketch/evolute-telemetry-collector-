@@ -853,8 +853,9 @@ class MainActivity : Activity() {
         val averages = "В среднем за сессию: +${percent(stats.averageAddedSocPercent)} п.п. · наблюдаемый интервал роста SOC: ${stats.totalGrowthMinutes} мин"
         val peak = "Наибольший прирост за сессию: +${percent(stats.largestSessionGainPercent)} п.п."
         val details = sessions.take(5).joinToString("\n") { session ->
-            val date = formatter.format(java.time.Instant.parse(session.startedAt))
-            "${date} · ${percent(session.startSoc)}→${percent(session.endSoc)}% · +${percent(session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
+            val started = formatter.format(java.time.Instant.parse(session.startedAt))
+            val ended = formatter.format(java.time.Instant.parse(session.endedAt))
+            "${started}–${ended} · ${percent(session.startSoc)}→${percent(session.endSoc)}% · +${percent(session.addedSocPercent)} п.п. · ${session.durationMinutes} мин
         }
         chargingHistoryValue.text = "$summary\n$averages\n$peak\n$details"
     }
