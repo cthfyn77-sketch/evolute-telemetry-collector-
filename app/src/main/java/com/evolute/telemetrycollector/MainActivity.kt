@@ -250,7 +250,7 @@ class MainActivity : Activity() {
         calcColumn.addView(text("НАШ РАСЧЁТ", 9f, accent, true))
         calculatedRangeValue = text("— км", 24f, accent, true)
         calcColumn.addView(calculatedRangeValue)
-        calculatedRangeHint = text("Штатный прогноз · сбор истории 5 км", 9f, muted)
+        calculatedRangeHint = text("Штатный прогноз · сбор истории 1 км", 9f, muted)
         calcColumn.addView(calculatedRangeHint)
         rangeColumns.addView(stockColumn, LinearLayout.LayoutParams(0, -2, 1f))
         rangeColumns.addView(View(this).apply { setBackgroundColor(Color.rgb(54, 70, 78)) },
@@ -505,7 +505,7 @@ class MainActivity : Activity() {
             val calculatedRange = db.calculatedRangeKm()
             calculatedRangeValue.text = (calculatedRange ?: latest.stockRange)?.let { "${it.toInt()} км" } ?: "— км"
             calculatedRangeHint.text = if (calculatedRange != null) {
-                "По среднему расходу SOC · последние 8 интервалов по 5 км"
+                "По среднему расходу SOC · последние 8 километров"
             } else {
                 "Штатный прогноз · сбор истории 5 км"
             }
