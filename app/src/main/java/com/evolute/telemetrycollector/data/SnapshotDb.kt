@@ -116,6 +116,30 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             rows
         }
 
+    /**
+     * Lightweight complete history for trip and charging-session reconstruction.
+     * These analyzers need only timestamps, SOC and odometer; loading sensor JSON
+     * for every historical row wastes memory and needlessly limits the history window.
+     */
+    fun analyticsHistorySnapshots(): List<TelemetrySnapshot> =
+        readableDatabase.rawQuery(
+            "SELECT captured_at,soc,odometer FROM snapshots ORDER BY id ASC", null
+        ).use { c ->
+            val rows = mutableListOf<TelemetrySnapshot>()
+            while (c.moveToNext()) rows.add(
+                TelemetrySnapshot(
+                    capturedAt = c.getString(0),
+                    soc = c.getDouble(1),
+                    odometer = c.getDouble(2),
+                    stockRange = null,
+                    online = false,
+                    ready = false,
+                    sensorsJson = "{}"
+                )
+            )
+            rows
+        }
+
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"
         return "Время: ${item.capturedAt}\nSOC: ${item.soc}%\nОдометр: ${item.odometer} км\nШтатный запас: ${item.stockRange?.let { "${it} км" } ?: "—"}\nОнлайн: ${item.online}; готовность: ${item.ready}"

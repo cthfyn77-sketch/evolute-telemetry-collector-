@@ -225,3 +225,11 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Keeps RFC 4180 field escaping, CRLF record separators, column order, and stored telemetry unchanged.
 - Adds a regression test that verifies the UTF-8 BOM before the CSV header.
 - Release version: 0.29.0 (versionCode 29).
+
+
+## v157 — complete lightweight analytics history
+
+- Trip and charging-session reconstruction now reads the complete locally stored snapshot history instead of the previous 20,000-row window.
+- The analytics query loads only capture time, SOC and odometer; large sensor JSON payloads are not loaded into memory for calculations that do not use them.
+- Trip and charging-session detection rules, telemetry collection, raw database records, CSV export, charts and range estimation remain unchanged.
+- Release version: 0.30.0 (versionCode 30).

@@ -657,7 +657,7 @@ class MainActivity : Activity() {
         val updated = getSharedPreferences("collector_status", MODE_PRIVATE).getLong("updated_at", 0L)
         status.text = "$session\n$last" + if (updated > 0) "\nОбновлено: ${java.time.Instant.ofEpochMilli(updated)}" else ""
         if (snapshotCount != lastTripHistoryRecordCount) {
-            val fullHistory = db.allSnapshots()
+            val fullHistory = db.analyticsHistorySnapshots()
             renderTripHistory(fullHistory)
             renderChargingHistory(fullHistory)
             lastTripHistoryRecordCount = snapshotCount

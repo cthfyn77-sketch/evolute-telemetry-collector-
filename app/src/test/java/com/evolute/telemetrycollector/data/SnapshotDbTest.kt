@@ -74,6 +74,24 @@ class SnapshotDbTest {
         assertEquals(250, db.recentSnapshots(1000).size)
     }
 
+    @Test fun analyticsHistoryLoadsEveryRowWithoutSensorPayloads() {
+        db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, "server-1", """{"large":"payload"}"""))
+        db.insert(ApiClient.Telemetry(63.0, 37166.0, 279.0, true, false, "server-2", """{"another":"payload"}"""))
+
+        val history = db.analyticsHistorySnapshots()
+
+        assertEquals(2, history.size)
+        assertEquals(64.0, history[0].soc, 0.001)
+        assertEquals(37165.0, history[0].odometer, 0.001)
+        assertEquals(63.0, history[1].soc, 0.001)
+        assertEquals(37166.0, history[1].odometer, 0.001)
+        assertEquals("{}", history[0].sensorsJson)
+        assertEquals("{}", history[1].sensorsJson)
+        assertNull(history[0].stockRange)
+        assertFalse(history[0].online)
+        assertFalse(history[0].ready)
+    }
+
     @Test fun emptyDatabaseHasNoLatestRecord() {
         assertEquals(0L, db.count())
         assertEquals("Пока нет записей", db.latest())
