@@ -267,7 +267,7 @@ class MainActivity : Activity() {
         addGap(consumptionCard, 5)
         consumptionValue = text("— % / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("По фактическому расходу SOC за последние 5 км", 9f, muted))
+        consumptionCard.addView(text("Среднее по последним 8 интервалам, каждый по 5 км", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -505,7 +505,7 @@ class MainActivity : Activity() {
             val calculatedRange = db.calculatedRangeKm()
             calculatedRangeValue.text = (calculatedRange ?: latest.stockRange)?.let { "${it.toInt()} км" } ?: "— км"
             calculatedRangeHint.text = if (calculatedRange != null) {
-                "По фактическому расходу SOC · окно 5 км"
+                "По среднему расходу SOC · последние 8 интервалов по 5 км"
             } else {
                 "Штатный прогноз · сбор истории 5 км"
             }
