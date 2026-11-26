@@ -9,7 +9,13 @@ internal data class TripSummary(
     val distanceKm: Double,
     val durationSeconds: Long,
     val socUsedPercent: Double?
-)
+) {
+    /** Distance divided by elapsed trip time; null when timestamps provide no duration. */
+    val averageSpeedKmh: Double?
+        get() = if (durationSeconds > 0 && distanceKm.isFinite() && distanceKm >= 0.0) {
+            distanceKm * 3600.0 / durationSeconds
+        } else null
+}
 
 /**
  * Reconstructs completed drives from recorded odometer movement.
@@ -113,6 +119,7 @@ internal data class TripHistoryStats(
     val measuredTrips: Int,
     val totalSocUsedPercent: Double,
     val averagePercentPer100Km: Double?,
+    val averageSpeedKmh: Double?,
     val consumptionPoints: List<TripConsumptionPoint>
 )
 
@@ -130,12 +137,19 @@ internal object TripConsumptionAnalyzer {
         val measuredDistance = points.sumOf { it.distanceKm }
         val measuredSoc = points.sumOf { it.socUsedPercent }
         val average = if (measuredDistance > 0.0) measuredSoc / measuredDistance * 100.0 else null
+        // Aggregate speed is distance-weighted over elapsed time for completed trips.
+        val timedTrips = trips.filter { it.durationSeconds > 0 && it.distanceKm.isFinite() && it.distanceKm >= 0.0 }
+        val elapsedSeconds = timedTrips.sumOf { it.durationSeconds }
+        val averageSpeed = if (elapsedSeconds > 0L) {
+            timedTrips.sumOf { it.distanceKm } * 3600.0 / elapsedSeconds
+        } else null
         return TripHistoryStats(
             tripCount = trips.size,
             totalDistanceKm = trips.sumOf { it.distanceKm.coerceAtLeast(0.0) },
             measuredTrips = points.size,
             totalSocUsedPercent = measuredSoc,
             averagePercentPer100Km = average,
+            averageSpeedKmh = averageSpeed,
             consumptionPoints = points
         )
     }
