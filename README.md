@@ -107,10 +107,10 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Original snapshots remain intact in SQLite and CSV exports.
 - Release version: 0.13.0 (versionCode 13).
 
-## v139 — five-kilometre SOC consumption
+## v139 — per-kilometre SOC consumption
 
-- Measures consumed SOC at each completed 5-km odometer interval.
-- Calculates average consumption from up to the latest eight valid intervals; partial intervals are not treated as completed measurements.
+- Measures consumed SOC at every completed 1-km odometer interval, interpolating SOC at kilometre boundaries when telemetry samples arrive between them.
+- Calculates average consumption from up to the latest eight valid one-kilometre intervals; partial intervals are not treated as completed measurements.
 - Estimates remaining range from the latest SOC and the rolling average SOC consumption per kilometre.
 - Resets the measurement baseline after a telemetry outage or a stationary charging event; odometer anomaly protection from v138 remains active.
 - Raw telemetry snapshots and CSV export remain unchanged.
