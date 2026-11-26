@@ -20,7 +20,23 @@ class BatteryHistoryAnalyzerTest {
 
     @Test fun flagsIsolatedSpikeThatReturnsToBaseline() {
         val history = listOf(sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""), sample("2026-11-26T00:00:30Z", """{"batteryVoltage":500}"""), sample("2026-11-26T00:01:00Z", """{"batteryVoltage":351}"""))
-        assertTrue(BatteryHistoryAnalyzer.analyze(history).alerts.any { it.contains("одиночный скачок") })
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.any { it.contains("одиночный скачок") })
+        val metric = report.metrics.single { it.path == "batteryVoltage" }
+        assertEquals(2, metric.samples)
+        assertEquals(351.0, metric.max, 0.001)
+        assertTrue(metric.points.none { it.value == 500.0 })
+    }
+
+    @Test fun keepsSustainedLevelChangeInHistory() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:00:30Z", """{"batteryVoltage":420}"""),
+            sample("2026-11-26T00:01:00Z", """{"batteryVoltage":421}""")
+        )
+        val metric = BatteryHistoryAnalyzer.analyze(history).metrics.single { it.path == "batteryVoltage" }
+        assertEquals(3, metric.samples)
+        assertEquals(421.0, metric.latest, 0.001)
     }
 
     @Test fun doesNotBridgeTelemetryGaps() {
