@@ -563,6 +563,13 @@ class MainActivity : Activity() {
             listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
                 key.contains("enginetemperature") || key.contains("enginetemp") ->
                 "Температура ОЖ"
+            listOf("climate", "hvac").any { key.contains(it) } &&
+                listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } ->
+                "Климат — заданная температура"
+            listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
+                "hvacinterior", "cabinairtemperature", "interiorairtemperature",
+                "insideairtemperature", "cabinairtemp", "interiorairtemp").any { key.contains(it) } ->
+                "Климат — температура в салоне"
             listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } ->
                 "Температура в салоне"
             listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } ->
@@ -602,10 +609,16 @@ class MainActivity : Activity() {
                     key.contains("enginetemperature") || key.contains("enginetemp") -> 4
                 listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } -> 5
                 listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } -> 6
-                else -> 7
+                listOf("temperature", "temp", "batterytemperature").any { key.contains(it) } -> 7
+                listOf("climate", "hvac").any { key.contains(it) } &&
+                    listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } -> 8
+                listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
+                    "hvacinterior", "cabinairtemperature", "interiorairtemperature",
+                    "insideairtemperature", "cabinairtemp", "interiorairtemp").any { key.contains(it) } -> 9
+                else -> 10
             }
         }
-        prioritized.take(8).forEachIndexed { index, metric ->
+        prioritized.take(10).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
             addGap(batteryHistoryCharts, 3)
@@ -631,9 +644,9 @@ class MainActivity : Activity() {
             val chart = BatteryMetricChartView(this).apply { setPoints(metric.points) }
             batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(112)))
         }
-        if (prioritized.size > 8) {
+        if (prioritized.size > 10) {
             addGap(batteryHistoryCharts, 6)
-            batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 8) + " параметров доступны в текстовой сводке выше.", 9f, muted))
+            batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 10) + " параметров доступны в текстовой сводке выше.", 9f, muted))
         }
     }
 
