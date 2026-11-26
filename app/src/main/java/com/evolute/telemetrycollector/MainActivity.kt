@@ -563,12 +563,13 @@ class MainActivity : Activity() {
             listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
                 key.contains("enginetemperature") || key.contains("enginetemp") ->
                 "Температура ОЖ"
-            listOf("climate", "hvac").any { key.contains(it) } &&
+            listOf("climate", "hvac", "ac").any { key.contains(it) } &&
                 listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } ->
                 "Климат — заданная температура"
             listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
-                "hvacinterior", "cabinairtemperature", "interiorairtemperature",
-                "insideairtemperature", "cabinairtemp", "interiorairtemp").any { key.contains(it) } ->
+                "hvacinterior", "climateinside", "hvacinside", "insideclimate",
+                "cabinairtemperature", "interiorairtemperature", "insideairtemperature",
+                "cabinairtemp", "interiorairtemp", "insideairtemp").any { key.contains(it) } ->
                 "Климат — температура в салоне"
             listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } ->
                 "Температура в салоне"
@@ -610,11 +611,12 @@ class MainActivity : Activity() {
                 listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } -> 5
                 listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } -> 6
                 listOf("temperature", "temp", "batterytemperature").any { key.contains(it) } -> 7
-                listOf("climate", "hvac").any { key.contains(it) } &&
+                listOf("climate", "hvac", "ac").any { key.contains(it) } &&
                     listOf("setpoint", "settemp", "targettemperature", "targettemp", "desiredtemperature", "desiredtemp").any { key.contains(it) } -> 8
                 listOf("climatecabin", "hvaccabin", "cabinclimate", "climateinterior",
-                    "hvacinterior", "cabinairtemperature", "interiorairtemperature",
-                    "insideairtemperature", "cabinairtemp", "interiorairtemp").any { key.contains(it) } -> 9
+                    "hvacinterior", "climateinside", "hvacinside", "insideclimate",
+                    "cabinairtemperature", "interiorairtemperature", "insideairtemperature",
+                    "cabinairtemp", "interiorairtemp", "insideairtemp").any { key.contains(it) } -> 9
                 else -> 10
             }
         }
