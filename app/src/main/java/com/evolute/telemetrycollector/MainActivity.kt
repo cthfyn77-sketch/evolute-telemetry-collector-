@@ -849,11 +849,11 @@ class MainActivity : Activity() {
         val formatter = java.time.format.DateTimeFormatter.ofPattern("dd.MM HH:mm")
             .withZone(java.time.ZoneId.systemDefault())
         val summary = "Сессий: ${sessions.size} · суммарный прирост: ${String.format(java.util.Locale.US, "%.1f", totalAdded)} п.п. SOC"
-        val details = sessions.take(5).joinToString("\\n") { session ->
+        val details = sessions.take(5).joinToString("\n") { session ->
             val date = formatter.format(java.time.Instant.parse(session.startedAt))
             "${date} · ${String.format(java.util.Locale.US, "%.1f", session.startSoc)}→${String.format(java.util.Locale.US, "%.1f", session.endSoc)}% · +${String.format(java.util.Locale.US, "%.1f", session.addedSocPercent)} п.п. · ${session.durationMinutes} мин"
         }
-        chargingHistoryValue.text = "$summary\\n$details"
+        chargingHistoryValue.text = "$summary\n$details"
     }
 
     private fun formatDataFreshness(
