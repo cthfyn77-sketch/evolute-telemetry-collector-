@@ -16,6 +16,7 @@ class BatteryHistoryAnalyzerTest {
         assertEquals(3, report.metrics.size)
         assertTrue(report.metrics.any { it.path == "SOC" && it.latest == 70.0 })
         assertTrue(report.metrics.any { it.path == "batteryVoltage" && it.latest == 351.0 })
+        assertEquals(101.0, report.metrics.single { it.path == "batteryVoltage" }.points.last().odometer!!, 0.001)
     }
 
     @Test fun flagsIsolatedSpikeThatReturnsToBaseline() {
