@@ -10,7 +10,7 @@ import kotlin.math.max
 
 /** Read-only history view over sensor JSON already stored in snapshots. */
 internal object BatteryHistoryAnalyzer {
-    data class MetricPoint(val at: Instant, val value: Double)
+    data class MetricPoint(val at: Instant, val value: Double, val odometer: Double? = null)
     data class MetricHistory(
         val path: String,
         val latest: Double,
@@ -35,12 +35,12 @@ internal object BatteryHistoryAnalyzer {
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
             val sensorValues = extract(sample.sensorsJson)
             sensorValues.forEach { (path, value) ->
-                points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value))
+                points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
             // SOC is stored as a first-class snapshot field, even when EVACONNECT
             // does not expose it again inside the nested sensor JSON.
             if (!sensorSocExists && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
-                points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc))
+                points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
         }
         val alerts = mutableListOf<String>()
