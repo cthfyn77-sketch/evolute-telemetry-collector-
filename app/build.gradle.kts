@@ -10,21 +10,22 @@ android {
         applicationId = "com.evolute.telemetrycollector"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
     signingConfigs {
-        create("persistentDebug") {
-            storeFile = file("ci-signing.jks")
+        create("evoluteRelease") {
+            storeFile = file("evolute-release.jks")
             storePassword = System.getenv("SIGNING_KEYSTORE_PASSWORD")
             keyAlias = System.getenv("SIGNING_KEY_ALIAS")
             keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
         }
     }
     buildTypes {
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("persistentDebug")
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("evoluteRelease")
+            isMinifyEnabled = false
         }
     }
     compileOptions {
