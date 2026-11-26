@@ -71,7 +71,9 @@ class RangeEstimatorTest {
             TelemetrySnapshot("2026-11-24T09:00:00Z", 80.0, 10.0, null, true, true, "{}"),
             TelemetrySnapshot("2026-11-24T09:30:00Z", 90.0, 10.0, null, true, true, "{}")
         )
-        val afterCharge = (1..10).map { km ->
+        val afterCharge = listOf(
+            TelemetrySnapshot("2026-11-24T10:00:00Z", 90.0, 10.0, null, true, true, "{}")
+        ) + (1..10).map { km ->
             TelemetrySnapshot("2026-11-24T10:${(km * 2).toString().padStart(2, '0')}:00Z",
                 90.0 - km * 0.4, 10.0 + km, null, true, true, "{}")
         }
