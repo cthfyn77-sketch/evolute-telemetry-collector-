@@ -86,4 +86,31 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:10:00Z", trips[0].startedAt)
     }
 
+
+    @Test fun calculatesWeightedConsumptionFromTripsAtLeastOneKm() {
+        val trips = listOf(
+            TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 10.0, 600, 5.0),
+            TripSummary("2026-11-26T11:00:00Z", "2026-11-26T11:10:00Z", 20.0, 600, 8.0),
+            TripSummary("2026-11-26T12:00:00Z", "2026-11-26T12:02:00Z", 0.6, 120, 2.0),
+            TripSummary("2026-11-26T13:00:00Z", "2026-11-26T13:10:00Z", 5.0, 600, null)
+        )
+        val stats = TripConsumptionAnalyzer.summarize(trips)
+        assertEquals(4, stats.tripCount)
+        assertEquals(35.6, stats.totalDistanceKm, 0.001)
+        assertEquals(2, stats.measuredTrips)
+        assertEquals(13.0, stats.totalSocUsedPercent, 0.001)
+        assertEquals(43.333, stats.averagePercentPer100Km!!, 0.01)
+    }
+
+    @Test fun returnsNoAverageWhenTripsHaveNoReliableSocMeasurement() {
+        val trips = listOf(
+            TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 8.0, 600, null),
+            TripSummary("2026-11-26T11:00:00Z", "2026-11-26T11:02:00Z", 0.7, 120, 1.0)
+        )
+        val stats = TripConsumptionAnalyzer.summarize(trips)
+        assertEquals(2, stats.tripCount)
+        assertEquals(0, stats.measuredTrips)
+        assertNull(stats.averagePercentPer100Km)
+    }
+
 }
