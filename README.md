@@ -253,3 +253,12 @@ GitHub Actions workflow `.github/workflows/android.yml` собирает debug A
 - Adds regression coverage for odometer rollback, SOC rise while moving, and the first valid interval after charging.
 - Raw telemetry snapshots, CSV export, trip reconstruction, charging-session reconstruction, API access and the permanent APK signing configuration remain unchanged.
 - Release version: 0.32.0 (versionCode 32).
+
+
+## v162 — eight-interval range estimator warm-up
+
+- The SOC-based range estimate is withheld until eight complete, valid 1-km intervals have been collected after the latest reset.
+- Until the eight-interval window is ready, the dashboard continues to show the vehicle-reported range.
+- After the window is ready, the estimate uses the average SOC consumption of the latest eight valid intervals and the latest SOC reading.
+- Adds regression tests for warm-up, partial intervals, telemetry gaps, odometer rollback, charging, and SOC rise while moving.
+- Release version: 0.33.0 (versionCode 33).
