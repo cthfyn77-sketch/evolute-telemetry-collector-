@@ -267,7 +267,7 @@ class MainActivity : Activity() {
         addGap(consumptionCard, 5)
         consumptionValue = text("— % / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("Среднее по последним 8 интервалам, каждый по 5 км", 9f, muted))
+        consumptionCard.addView(text("Среднее по последним 8 километровым интервалам", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -557,9 +557,16 @@ class MainActivity : Activity() {
             .replace(Regex("[^a-zа-я0-9]"), "")
         return when {
             listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } ->
-                "Напряжение батареи"
+                "Напряжение АКБ"
             listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } ->
                 "Ток батареи"
+            listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
+                key.contains("enginetemperature") || key.contains("enginetemp") ->
+                "Температура ОЖ"
+            listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } ->
+                "Температура в салоне"
+            listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } ->
+                "Температура за бортом"
             listOf("temperature", "temp", "batterytemperature").any { key.contains(it) } ->
                 "Температура батареи"
             listOf("soh", "stateofhealth", "batteryhealth", "health").any { key.contains(it) } ->
@@ -585,11 +592,17 @@ class MainActivity : Activity() {
         }
         val prioritized = metrics.sortedBy { metric ->
             val key = metric.path.lowercase(java.util.Locale.ROOT)
-                .replace(Regex("[^a-z0-9]"), "")
+                .replace(Regex("[^a-zа-я0-9]"), "")
             when {
                 key == "soc" || key.contains("stateofcharge") || key.contains("chargelevel") -> 0
                 key.contains("soh") || key.contains("stateofhealth") || key.contains("batteryhealth") -> 1
-                else -> 2
+                listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } -> 2
+                listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } -> 3
+                listOf("coolant", "enginecoolant", "coolanttemperature", "coolanttemp").any { key.contains(it) } ||
+                    key.contains("enginetemperature") || key.contains("enginetemp") -> 4
+                listOf("cabin", "interior", "salon", "inside").any { key.contains(it) } -> 5
+                listOf("ambient", "outside", "outdoor", "external", "environment").any { key.contains(it) } -> 6
+                else -> 7
             }
         }
         prioritized.take(8).forEachIndexed { index, metric ->
