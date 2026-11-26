@@ -166,4 +166,20 @@ class RangeEstimatorTest {
         assertEquals(43.333333, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
+
+    @Test fun sortsOutOfOrderSnapshotsBeforeEstimatingRange() {
+        val chronological = (0..5).map { km ->
+            snapshot(80.0 - km * 0.4, km.toDouble(), km)
+        }
+        // Database retrieval order can differ from capture time; calculation
+        // must use timestamp order when every timestamp is valid.
+        val shuffled = listOf(
+            chronological[3], chronological[0], chronological[5],
+            chronological[2], chronological[1], chronological[4]
+        )
+
+        assertEquals(197.5, RangeEstimator.estimate(shuffled)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(shuffled)!!, 0.001)
+    }
+
 }
