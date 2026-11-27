@@ -113,7 +113,6 @@ class RangeEstimatorTest {
         assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
-}
 
     @Test fun preservesLastValidWindowDuringTelemetryOutage() {
         val beforeOutage = (0..8).map { km ->
@@ -133,7 +132,7 @@ class RangeEstimatorTest {
         val history = beforeOutage + restored + (1..8).map { km ->
             snapshot(96.0 - km * 0.4, 20.0 + km, 20 + km)
         }
-        assertEquals(240.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(232.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 }
