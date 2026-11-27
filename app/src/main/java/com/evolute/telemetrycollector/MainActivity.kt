@@ -289,7 +289,7 @@ class MainActivity : Activity() {
         })
         addGap(rangeHistoryCard, 5)
         rangeHistoryChart = RangeHistoryChartView(this)
-        rangeHistoryCard.addView(rangeHistoryChart, LinearLayout.LayoutParams(-1, dp(132)))
+        rangeHistoryCard.addView(rangeHistoryChart, LinearLayout.LayoutParams(-1, dp(158)))
         content.addView(rangeHistoryCard)
 
         addGap(content, 10)
@@ -366,6 +366,7 @@ class MainActivity : Activity() {
         addGap(distanceChartCard, 8)
         distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
         distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
+        distanceChartCard.visibility = View.GONE
         content.addView(distanceChartCard)
 
         addGap(content, 12)
@@ -375,7 +376,7 @@ class MainActivity : Activity() {
         timeChartCard.addView(text("Изменение заряда во времени · стоянки и зарядка", 9f, muted))
         addGap(timeChartCard, 8)
         timeChart = TelemetryChartView(this, TelemetryChartView.AxisMode.TIME)
-        timeChartCard.addView(timeChart, LinearLayout.LayoutParams(-1, dp(176)))
+        timeChartCard.addView(timeChart, LinearLayout.LayoutParams(-1, dp(190)))
         content.addView(timeChartCard)
 
         addGap(content, 12)
@@ -665,11 +666,9 @@ class MainActivity : Activity() {
         // Keep time and mileage axes independent: time uses recent samples,
         // distance uses the complete local history with parked samples collapsed.
         val recentHistory = db.recentSnapshots(240)
-        val mileageHistory = db.allSnapshots()
         timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
-        distanceChartCard.visibility = if (mileageHistory.size >= 2) View.VISIBLE else View.GONE
+        distanceChartCard.visibility = View.GONE
         timeChart.setSnapshots(recentHistory)
-        distanceChart.setSnapshots(mileageHistory)
     }
 
 
@@ -679,7 +678,7 @@ class MainActivity : Activity() {
             .replace(Regex("[^a-zа-я0-9]"), "")
         return when {
             key.contains("12vbatteryvoltage") ->
-                "Напряжение 12В АКБ"
+                "Напряжение АКБ"
             listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) } ->
                 "Напряжение АКБ"
             listOf("current", "amp", "amperage", "batterycurrent").any { key.contains(it) } ->
@@ -775,8 +774,8 @@ class MainActivity : Activity() {
             )
             batteryHistoryCharts.addView(summary)
             addGap(batteryHistoryCharts, 3)
-            val chart = BatteryMetricChartView(this).apply { setPoints(metric.points) }
-            batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(112)))
+            val chart = BatteryMetricChartView(this).apply { setPoints(metric.points, metric.path) }
+            batteryHistoryCharts.addView(chart, LinearLayout.LayoutParams(-1, dp(146)))
             val metricKey = metric.path.lowercase(java.util.Locale.ROOT)
                 .replace(Regex("[^a-z0-9]"), "")
             if (metricKey.contains("soh") || metricKey.contains("stateofhealth") ||
