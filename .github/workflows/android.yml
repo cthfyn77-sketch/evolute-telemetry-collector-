@@ -20,10 +20,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      SIGNING_KEYSTORE_BASE64: \${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-      SIGNING_KEYSTORE_PASSWORD: \${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
-      SIGNING_KEY_ALIAS: \${{ secrets.SIGNING_KEY_ALIAS }}
-      SIGNING_KEY_PASSWORD: \${{ secrets.SIGNING_KEY_PASSWORD }}
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,13 +41,13 @@ jobs:
           gradle-version: '8.9'
 
       - name: Validate signing secrets and prepare keystore
-        if: \${{ inputs.build_apk == true }}
+        if: ${{ inputs.build_apk == true }}
         shell: bash
         run: |
           set -euo pipefail
           missing=0
           for name in SIGNING_KEYSTORE_BASE64 SIGNING_KEYSTORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
-            if [ -z "\${!name:-}" ]; then
+            if [ -z "${!name:-}" ]; then
               echo "::error::Missing GitHub Actions secret: $name"
               missing=1
             fi
@@ -68,11 +68,11 @@ jobs:
         run: gradle testDebugUnitTest
 
       - name: Build signed release APK
-        if: \${{ inputs.build_apk == true }}
+        if: ${{ inputs.build_apk == true }}
         run: gradle assembleRelease
 
       - name: Verify APK signature and report certificate fingerprint
-        if: \${{ inputs.build_apk == true }}
+        if: ${{ inputs.build_apk == true }}
         shell: bash
         run: |
           set -euo pipefail
@@ -92,7 +92,7 @@ jobs:
           echo "Release APK signature verification passed."
 
       - name: Upload signed release APK
-        if: \${{ inputs.build_apk == true }}
+        if: ${{ inputs.build_apk == true }}
         uses: actions/upload-artifact@v4
         with:
           name: evolute-telemetry-collector-v158-release

@@ -174,8 +174,7 @@ class TelemetryChartView(context: Context, private val axisMode: AxisMode) : Vie
         }
 
         axisText.color = android.graphics.Color.rgb(151, 172, 181)
-        axisText.textSize = dp(8.5f); axisText.textAlign = Paint.Align.LEFT
-        canvas.drawText("SOC, %", left, height - dp(5f), axisText)
+        axisText.textSize = dp(8.5f)
         val tickIndexes = listOf(0, snapshots.size / 2, snapshots.lastIndex).distinct()
         val longPeriod = timeSpan > 24 * 60 * 60 * 1000L
         tickIndexes.forEachIndexed { position, index ->
