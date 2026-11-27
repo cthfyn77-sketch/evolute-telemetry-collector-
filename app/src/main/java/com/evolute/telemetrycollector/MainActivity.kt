@@ -48,6 +48,8 @@ class MainActivity : Activity() {
     private lateinit var batteryMetricsValue: TextView
     private lateinit var batteryHistoryValue: TextView
     private lateinit var batteryHistoryCharts: LinearLayout
+    private lateinit var batteryHistoryPeriodControls: LinearLayout
+    private var batteryHistoryPeriodHours: Long? = 4L
     private lateinit var apiFieldsValue: TextView
     private lateinit var apiFieldsCard: LinearLayout
     private lateinit var sensorReadingsContent: LinearLayout
@@ -325,9 +327,12 @@ class MainActivity : Activity() {
 
         addGap(content, 10)
         val batteryHistoryCard = card()
-        batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ · 4 ЧАСА", 11f, white, true))
+        batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ", 11f, white, true))
         addGap(batteryHistoryCard, 6)
-        batteryHistoryCard.addView(text("История датчиков из локальной базы · события показывают возможные сбои телеметрии, а не неисправность автомобиля", 9f, muted))
+        batteryHistoryCard.addView(text("Период графиков датчиков · данные сохраняются локально и не удаляются при переключении периода", 9f, muted))
+        addGap(batteryHistoryCard, 8)
+        batteryHistoryPeriodControls = row().apply { gravity = Gravity.CENTER_VERTICAL }
+        batteryHistoryCard.addView(batteryHistoryPeriodControls)
         addGap(batteryHistoryCard, 8)
         batteryHistoryValue = text("Ожидание истории батареи", 10f, white)
         batteryHistoryValue.setLineSpacing(dp(2).toFloat(), 1f)
@@ -335,6 +340,7 @@ class MainActivity : Activity() {
         addGap(batteryHistoryCard, 10)
         batteryHistoryCharts = column()
         batteryHistoryCard.addView(batteryHistoryCharts)
+        renderBatteryHistoryPeriodControls()
         content.addView(batteryHistoryCard)
 
         addGap(content, 10)
@@ -643,9 +649,7 @@ class MainActivity : Activity() {
         rangeHistoryChart.setSnapshots(db.recentSnapshots(240))
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
-            val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
-            batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
-            renderBatteryMetricCharts(batteryHistory.metrics)
+            refreshBatteryHistory(db)
             lastBatteryHistoryRecordCount = snapshotCount
         }
         batteryMetricsValue.text = if (latest != null) {
@@ -675,6 +679,37 @@ class MainActivity : Activity() {
     }
 
 
+    private fun renderBatteryHistoryPeriodControls() {
+        batteryHistoryPeriodControls.removeAllViews()
+        val periods = listOf(
+            "4 ч" to 4L,
+            "24 ч" to 24L,
+            "7 дн" to 24L * 7L,
+            "Всё" to null
+        )
+        periods.forEachIndexed { index, item ->
+            if (index > 0) batteryHistoryPeriodControls.addView(View(this), LinearLayout.LayoutParams(dp(5), 1))
+            val selected = batteryHistoryPeriodHours == item.second
+            val button = actionButton(item.first, if (selected) accent else surface2, if (selected) bg else white) {
+                batteryHistoryPeriodHours = item.second
+                renderBatteryHistoryPeriodControls()
+                refreshBatteryHistory(SnapshotDb.get(this))
+            }
+            button.textSize = 10f
+            button.setPadding(dp(9), dp(10), dp(9), dp(10))
+            batteryHistoryPeriodControls.addView(button, LinearLayout.LayoutParams(0, -2, 1f))
+        }
+    }
+
+    private fun refreshBatteryHistory(db: SnapshotDb) {
+        val cutoff = batteryHistoryPeriodHours?.let { hours ->
+            java.time.Instant.now().minusSeconds(hours * 3600L).toString()
+        }
+        val history = db.batteryHistorySnapshots(cutoff)
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        batteryHistoryValue.text = BatteryHistoryAnalyzer.render(report)
+        renderBatteryMetricCharts(report.metrics)
+    }
     /** Convert common battery sensor JSON paths into readable Russian chart titles. */
     private fun batteryMetricDisplayName(path: String): String {
         val key = path.lowercase(java.util.Locale.ROOT)
