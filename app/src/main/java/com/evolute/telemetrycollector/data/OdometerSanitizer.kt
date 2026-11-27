@@ -19,7 +19,7 @@ internal object OdometerSanitizer {
         if (ordered.size != history.size) return history
         if (ordered.size < 3) return ordered.map { it.second }
 
-        val rejected = linkedSetOf<Int>()
+        val corrected = ordered.map { it.second }.toMutableList()
         for (i in 1 until ordered.lastIndex) {
             val (beforeAt, before) = ordered[i - 1]
             val (spikeAt, spike) = ordered[i]
@@ -33,9 +33,11 @@ internal object OdometerSanitizer {
             val returned = after.odometer - before.odometer
             if (kotlin.math.abs(jump) >= MIN_SPIKE_DISTANCE_KM &&
                 kotlin.math.abs(returned) <= RETURN_TOLERANCE_KM) {
-                rejected.add(i)
+                // Correct only the implausible odometer value. Keep the rest of
+                // this snapshot (especially SOC and charge state) for analytics.
+                corrected[i] = spike.copy(odometer = before.odometer)
             }
         }
-        return ordered.filterIndexed { index, _ -> index !in rejected }.map { it.second }
+        return corrected
     }
 }
