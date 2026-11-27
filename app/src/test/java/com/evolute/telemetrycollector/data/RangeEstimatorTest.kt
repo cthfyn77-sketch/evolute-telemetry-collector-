@@ -11,106 +11,107 @@ class RangeEstimatorTest {
         online = true, ready = true, sensorsJson = "{}"
     )
 
-    @Test fun requiresEightCompleteValidIntervalsBeforeEstimating() {
-        val seven = (0..7).map { km -> snapshot(100.0 - km * 0.4, km.toDouble(), km) }
+    @Test fun requiresEightCompleteFiveKilometerIntervalsBeforeEstimating() {
+        val seven = (0..35 step 5).map { km -> snapshot(100.0 - km * 0.08, km.toDouble(), km) }
         assertNull(RangeEstimator.estimate(seven))
         assertNull(RangeEstimator.consumptionPer100Km(seven))
 
-        val eight = seven + snapshot(96.8, 8.0, 8)
+        val eight = seven + snapshot(96.8, 40.0, 40)
         assertEquals(242.0, RangeEstimator.estimate(eight)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(eight)!!, 0.001)
+        assertEquals(8.0, RangeEstimator.consumptionPer100Km(eight)!!, 0.001)
     }
 
-    @Test fun interpolatesSocAtEachOneKilometerBoundary() {
-        val history = listOf(snapshot(100.0, 0.0, 0), snapshot(96.8, 8.0, 2))
+    @Test fun interpolatesSocAtEachFiveKilometerBoundary() {
+        val history = listOf(snapshot(100.0, 0.0, 0), snapshot(96.8, 40.0, 2))
         assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        assertEquals(8.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
-    @Test fun usesOnlyLatestEightValidOneKilometerIntervals() {
+    @Test fun usesOnlyLatestEightValidFiveKilometerIntervals() {
         var soc = 100.0
         val history = mutableListOf(snapshot(soc, 0.0, 0))
-        (1..9).forEach { km ->
-            soc -= km.toDouble()
-            history.add(snapshot(soc, km.toDouble(), km))
+        (1..9).forEach { interval ->
+            soc -= interval.toDouble() * 0.2
+            history.add(snapshot(soc, interval * 5.0, interval * 5))
         }
-        // The first (1%) interval is discarded; average of 2..9 is 5.5%/km.
-        assertEquals(10.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(550.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        // The first (0.2%) interval is discarded; average of 0.4..1.8 is 1.1% per 5 km.
+        assertEquals(40.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(22.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun updatesRangeUsingLatestSocDuringPartialNinthInterval() {
-        val complete = (0..8).map { km -> snapshot(100.0 - km * 0.5, km.toDouble(), km) }
-        val partial = complete + snapshot(95.75, 8.5, 9)
+        val complete = (0..8).map { interval ->
+            snapshot(100.0 - interval * 0.5, interval * 5.0, interval * 5)
+        }
+        val partial = complete + snapshot(95.75, 42.5, 45)
         assertEquals(192.0, RangeEstimator.estimate(complete)!!, 0.001)
         assertEquals(191.5, RangeEstimator.estimate(partial)!!, 0.001)
     }
 
     @Test fun doesNotEstimateWhenSocDidNotDecrease() {
-        val history = (0..8).map { km -> snapshot(70.0 + km * 0.1, km.toDouble(), km) }
-        assertNull(RangeEstimator.estimate(history))
-    }
-
-    @Test fun resetsWindowAfterTelemetryGapAndRequiresEightNewIntervals() {
-        val history = listOf(
-            snapshot(100.0, 0.0, 0),
-            snapshot(99.5, 1.0, 1),
-            snapshot(80.0, 1.0, 20)
-        ) + (1..8).map { km ->
-            snapshot(80.0 - km * 0.4, 1.0 + km, 20 + km)
+        val history = (0..8).map { interval ->
+            snapshot(70.0 + interval * 0.1, interval * 5.0, interval * 5)
         }
-        assertEquals(192.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
-    }
-
-    @Test fun doesNotReusePreOutageIntervalsBeforeEightNewIntervals() {
-        val history = listOf(
-            snapshot(100.0, 0.0, 0),
-            snapshot(99.5, 1.0, 1),
-            snapshot(80.0, 1.0, 20),
-            snapshot(79.8, 1.5, 25)
-        )
         assertNull(RangeEstimator.estimate(history))
-        assertNull(RangeEstimator.consumptionPer100Km(history))
     }
 
-    @Test fun keepsWindowWhenTelemetryGapIsExactlyThreeMinutes() {
-        val history = (0..4).map { km -> snapshot(100.0 - km * 0.5, km.toDouble(), km) } +
-            listOf(snapshot(98.0, 4.0, 7)) +
-            (5..8).map { km -> snapshot(100.0 - km * 0.5, km.toDouble(), km + 3) }
-        // Eight valid intervals remain in the window; average consumption is 0.5%/km.
+    @Test fun preservesLastValidWindowAcrossTelemetryOutage() {
+        val beforeOutage = (0..8).map { interval ->
+            snapshot(100.0 - interval * 0.5, interval * 5.0, interval * 5)
+        }
+        val lastKnown = beforeOutage.last()
+        val offlineSnapshot = snapshot(lastKnown.soc, lastKnown.odometer, 100)
+        val history = beforeOutage + offlineSnapshot
         assertEquals(192.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(50.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        assertEquals(10.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
+    @Test fun doesNotCountDistanceAcrossTelemetryOutageButKeepsPriorValidIntervals() {
+        val history = (0..7).map { interval ->
+            snapshot(100.0 - interval * 0.5, interval * 5.0, interval * 5)
+        } + listOf(
+            snapshot(96.5, 40.0, 100), // outage: do not infer the missing 5-km interval
+            snapshot(96.0, 45.0, 105)
+        )
+        // Seven pre-outage intervals plus one fresh 5-km interval are available.
+        assertEquals(200.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(10.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun resetsWindowAfterTrueOdometerRollback() {
         val history = listOf(
-            snapshot(100.0, 10.0, 0),
-            snapshot(99.5, 11.0, 1),
-            snapshot(99.0, 0.0, 2)
-        ) + (1..8).map { km -> snapshot(99.0 - km * 0.4, km.toDouble(), 2 + km) }
+            snapshot(100.0, 50.0, 0),
+            snapshot(99.5, 55.0, 5),
+            snapshot(99.0, 0.0, 10)
+        ) + (1..8).map { interval ->
+            snapshot(99.0 - interval * 0.4, interval * 5.0, 10 + interval * 5)
+        }
         assertEquals(239.5, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        assertEquals(8.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun movingSocRiseResetsPartialIntervalAndRequiresEightNewIntervals() {
         val history = listOf(
             snapshot(100.0, 0.0, 0),
-            snapshot(99.5, 1.0, 1),
-            snapshot(100.0, 1.5, 2)
-        ) + (1..8).map { km ->
-            snapshot(100.0 - km * 0.4, 1.5 + km, 2 + km)
+            snapshot(99.5, 5.0, 5),
+            snapshot(100.0, 7.5, 7)
+        ) + (1..8).map { interval ->
+            snapshot(100.0 - interval * 0.4, 7.5 + interval * 5.0, 7 + interval * 5)
         }
         assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        assertEquals(8.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 
     @Test fun stationaryChargingClearsPreChargeWindowAndRequiresEightPostChargeIntervals() {
-        val beforeCharge = (0..8).map { km -> snapshot(100.0 - km * 0.5, km.toDouble(), km) }
-        val afterCharge = listOf(snapshot(100.0, 8.0, 20)) +
-            (1..8).map { km -> snapshot(100.0 - km * 0.4, 8.0 + km, 20 + km) }
+        val beforeCharge = (0..8).map { interval ->
+            snapshot(100.0 - interval * 0.5, interval * 5.0, interval * 5)
+        }
+        val afterCharge = listOf(snapshot(100.0, 40.0, 100)) +
+            (1..8).map { interval ->
+                snapshot(100.0 - interval * 0.4, 40.0 + interval * 5.0, 100 + interval * 5)
+            }
         val history = beforeCharge + afterCharge
         assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
-        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+        assertEquals(8.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
 }
