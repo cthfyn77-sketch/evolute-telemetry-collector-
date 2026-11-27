@@ -809,9 +809,7 @@ class MainActivity : Activity() {
             } else {
                 addGap(batteryHistoryCharts, 3)
             }
-            val hasGap = metric.points.zipWithNext().any {
-                java.time.Duration.between(it.first.at, it.second.at).toMinutes() > 10
-            }
+            val hasGap = BatteryHistoryAnalyzer.hasTelemetryGap(metric.points)
             val delta = metric.points.last().value - metric.points.first().value
             val trend = if (metric.points.size >= 2 && !hasGap) {
                 " · изменение " + (if (delta > 0) "+" else "") +
