@@ -100,6 +100,27 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
             rows
         }
 
+    /**
+     * Battery sensor history for a selectable time window.
+     * A null cutoff returns every locally retained snapshot; no rows are deleted.
+     */
+    fun batteryHistorySnapshots(capturedAfter: String? = null): List<TelemetrySnapshot> {
+        val sql = if (capturedAfter == null) {
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC"
+        } else {
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots WHERE captured_at >= ? ORDER BY id ASC"
+        }
+        val args = if (capturedAfter == null) null else arrayOf(capturedAfter)
+        return readableDatabase.rawQuery(sql, args).use { c ->
+            val rows = mutableListOf<TelemetrySnapshot>()
+            while (c.moveToNext()) rows.add(TelemetrySnapshot(
+                c.getString(0), c.getDouble(2), c.getDouble(3),
+                if (c.isNull(4)) null else c.getDouble(4), c.getInt(5) == 1,
+                c.getInt(6) == 1, c.getString(7), if (c.isNull(1)) null else c.getString(1)
+            ))
+            rows
+        }
+    }
     /** Full chronological sample window for local trip reconstruction. */
     fun allSnapshots(limit: Int = 20000): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
