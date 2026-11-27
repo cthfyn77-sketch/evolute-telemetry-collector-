@@ -48,14 +48,21 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
      * Inserts only snapshots newer than the latest server-timestamped record.
      * The transaction makes comparison + insert atomic if polling is ever invoked concurrently.
      */
-    fun insert(t: ApiClient.Telemetry): TelemetryFreshness {
+    internal fun insert(t: ApiClient.Telemetry): TelemetryFreshness {
         val db = writableDatabase
         db.beginTransaction()
         try {
             val latestUpdatedAt = db.rawQuery(
-                "SELECT api_updated_at FROM snapshots WHERE api_updated_at IS NOT NULL ORDER BY id DESC LIMIT 1",
+                "SELECT api_updated_at FROM snapshots WHERE api_updated_at IS NOT NULL ORDER BY id DESC",
                 null
-            ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            ).use { c ->
+                var latest: String? = null
+                while (c.moveToNext() && latest == null) {
+                    val candidate = c.getString(0)
+                    if (TelemetryFreshnessPolicy.isValidTimestamp(candidate)) latest = candidate
+                }
+                latest
+            }
             val freshness = TelemetryFreshnessPolicy.classify(t.updatedAt, latestUpdatedAt)
             if (freshness != TelemetryFreshness.ACCEPT) return freshness
 
