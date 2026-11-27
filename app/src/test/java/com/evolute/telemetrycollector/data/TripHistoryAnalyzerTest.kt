@@ -283,6 +283,9 @@ class TripHistoryAnalyzerTest {
     @Test fun averageSpeedIsUnavailableWhenTripHasNoElapsedTime() {
         val trip = TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:00:00Z", 5.0, 0, 2.0)
         assertNull(trip.averageSpeedKmh)
-        assertNull(TripConsumptionAnalyzer.summarize(listOf(trip)).averageSpeedKmh)
+        val stats = TripConsumptionAnalyzer.summarize(listOf(trip))
+        assertNull(stats.averageSpeedKmh)
+        assertEquals(0, stats.measuredTrips)
+        assertNull(stats.averagePercentPer100Km)
     }
 }
