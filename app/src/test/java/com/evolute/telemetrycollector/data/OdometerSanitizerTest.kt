@@ -10,7 +10,7 @@ class OdometerSanitizerTest {
             soc, odo, null, true, true, "{}"
         )
 
-    @Test fun removesOneShortLivedOdometerJump() {
+    @Test fun correctsOneShortLivedOdometerJump() {
         val history = listOf(
             sample(0, 1000.0),
             sample(30, 1012.0),
@@ -35,7 +35,7 @@ class OdometerSanitizerTest {
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
     }
 
-    @Test fun removesShortLivedBackwardsOdometerDrop() {
+    @Test fun correctsShortLivedBackwardsOdometerDrop() {
         val history = listOf(
             sample(0, 1000.0),
             sample(30, 988.0),
