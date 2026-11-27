@@ -77,4 +77,46 @@ class BatteryHistoryAnalyzerTest {
         assertEquals(78.0, soc.latest, 0.001)
     }
 
+
+    @Test fun doesNotFilterSpikeAcrossGapLongerThanExactlyThreeMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:03:01Z", """{"batteryVoltage":500}"""),
+            sample("2026-11-26T00:03:30Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.isEmpty())
+        val metric = report.metrics.single { it.path == "batteryVoltage" }
+        assertEquals(3, metric.samples)
+        assertEquals(500.0, metric.max, 0.001)
+    }
+
+    @Test fun renderReportsGapLongerThanExactlyTenMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:10:01Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
+    }
+
+    @Test fun filtersSpikeWhenGapIsExactlyThreeMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:03:00Z", """{"batteryVoltage":500}"""),
+            sample("2026-11-26T00:03:30Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.any { it.contains("одиночный скачок") })
+        assertEquals(2, report.metrics.single { it.path == "batteryVoltage" }.samples)
+    }
+
+    @Test fun doesNotReportGapWhenIntervalIsExactlyTenMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:10:00Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(!BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
+    }
 }

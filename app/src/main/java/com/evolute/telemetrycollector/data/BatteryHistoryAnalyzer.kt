@@ -82,8 +82,8 @@ internal object BatteryHistoryAnalyzer {
             val before = values[i - 1]
             val spike = values[i]
             val after = values[i + 1]
-            if (Duration.between(before.at, spike.at).toMinutes() > 3 ||
-                Duration.between(spike.at, after.at).toMinutes() > 3) continue
+            if (Duration.between(before.at, spike.at) > Duration.ofMinutes(3) ||
+                Duration.between(spike.at, after.at) > Duration.ofMinutes(3)) continue
             val baseline = before.value
             val deviates = abs(spike.value - baseline) >= max(abs(baseline) * 0.20, 1.0)
             val returns = abs(after.value - baseline) <= max(abs(baseline) * 0.05, 0.5)
@@ -96,7 +96,7 @@ internal object BatteryHistoryAnalyzer {
         if (report.metrics.isEmpty()) return "История появится после получения числовых датчиков напряжения, тока, температуры или SOH."
         val lines = report.metrics.take(12).map { m ->
             val hasGap = m.points.zipWithNext().any {
-                Duration.between(it.first.at, it.second.at).toMinutes() > 10
+                Duration.between(it.first.at, it.second.at) > Duration.ofMinutes(10)
             }
             val delta = m.points.last().value - m.points.first().value
             val change = if (m.points.size >= 2 && !hasGap) " · изменение за период " + signed(delta)
