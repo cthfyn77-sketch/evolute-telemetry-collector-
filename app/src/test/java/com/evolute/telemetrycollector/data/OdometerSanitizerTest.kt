@@ -35,3 +35,46 @@ class OdometerSanitizerTest {
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
     }
 }
+
+    @Test fun removesShortLivedBackwardsOdometerDrop() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 988.0),
+            sample(60, 1000.0),
+            sample(90, 1000.5)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(listOf(1000.0, 1000.0, 1000.5), clean.map { it.odometer })
+    }
+
+    @Test fun preservesOdometerCorrectionThatDoesNotReturnToBaseline() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 1012.0),
+            sample(60, 1011.0)
+        )
+        assertEquals(3, OdometerSanitizer.sanitize(history).size)
+    }
+
+    @Test fun sortsChronologicalSamplesBeforeCheckingSpike() {
+        val history = listOf(
+            sample(60, 1000.0),
+            sample(0, 1000.0),
+            sample(30, 1012.0)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(listOf(1000.0, 1000.0), clean.map { it.odometer })
+        assertEquals(listOf(0, 60), clean.map {
+            java.time.Instant.parse(it.capturedAt).epochSecond -
+                java.time.Instant.parse("2026-11-26T10:00:00Z").epochSecond
+        })
+    }
+
+    @Test fun keepsJumpWhenEitherNeighborGapExceedsThreeMinutes() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 1012.0),
+            sample(211, 1000.0)
+        )
+        assertEquals(3, OdometerSanitizer.sanitize(history).size)
+    }
