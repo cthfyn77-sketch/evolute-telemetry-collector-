@@ -44,15 +44,41 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         if (oldVersion < 2) db.execSQL("ALTER TABLE snapshots ADD COLUMN sensors_json TEXT NOT NULL DEFAULT '{}'")
     }
 
-    fun insert(t: ApiClient.Telemetry) {
-        val v = ContentValues().apply {
-            put("captured_at", java.time.Instant.now().toString())
-            put("api_updated_at", t.updatedAt)
-            put("soc", t.soc); put("odometer", t.odometer); put("stock_range", t.stockRange)
-            put("online", if (t.online) 1 else 0); put("ready", if (t.ready) 1 else 0)
-            put("sensors_json", t.sensorsJson)
+    /**
+     * Inserts only snapshots newer than the latest server-timestamped record.
+     * The transaction makes comparison + insert atomic if polling is ever invoked concurrently.
+     */
+    internal fun insert(t: ApiClient.Telemetry): TelemetryFreshness {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val latestUpdatedAt = db.rawQuery(
+                "SELECT api_updated_at FROM snapshots WHERE api_updated_at IS NOT NULL ORDER BY id DESC",
+                null
+            ).use { c ->
+                var latest: String? = null
+                while (c.moveToNext() && latest == null) {
+                    val candidate = c.getString(0)
+                    if (TelemetryFreshnessPolicy.isValidTimestamp(candidate)) latest = candidate
+                }
+                latest
+            }
+            val freshness = TelemetryFreshnessPolicy.classify(t.updatedAt, latestUpdatedAt)
+            if (freshness != TelemetryFreshness.ACCEPT) return freshness
+
+            val v = ContentValues().apply {
+                put("captured_at", java.time.Instant.now().toString())
+                put("api_updated_at", t.updatedAt)
+                put("soc", t.soc); put("odometer", t.odometer); put("stock_range", t.stockRange)
+                put("online", if (t.online) 1 else 0); put("ready", if (t.ready) 1 else 0)
+                put("sensors_json", t.sensorsJson)
+            }
+            db.insertOrThrow("snapshots", null, v)
+            db.setTransactionSuccessful()
+            return TelemetryFreshness.ACCEPT
+        } finally {
+            db.endTransaction()
         }
-        writableDatabase.insertOrThrow("snapshots", null, v)
     }
 
     /** Estimated range from complete 1-km SOC intervals, averaging the latest eight valid intervals. */

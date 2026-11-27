@@ -80,8 +80,14 @@ class CollectorService : Service() {
                     if (validationError != null) {
                         throw IOException(validationError)
                     }
-                    SnapshotDb.get(this@CollectorService).insert(telemetry)
-                    updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
+                    when (SnapshotDb.get(this@CollectorService).insert(telemetry)) {
+                        com.evolute.telemetrycollector.data.TelemetryFreshness.ACCEPT ->
+                            updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
+                        com.evolute.telemetrycollector.data.TelemetryFreshness.DUPLICATE ->
+                            updateNotification("evaconnect: повторный снимок пропущен")
+                        com.evolute.telemetrycollector.data.TelemetryFreshness.STALE ->
+                            updateNotification("evaconnect: устаревший снимок пропущен")
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
