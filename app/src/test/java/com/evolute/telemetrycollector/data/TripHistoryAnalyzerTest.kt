@@ -69,6 +69,28 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
     }
 
+    @Test fun longTelemetryOutageDoesNotKeepStaleChargingSessionOpen() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            // No snapshots for 16 minutes: the API did not report inactive.
+            chargeSample(26, 94.0, 1001.0, "active"),
+            sample(27, 93.5, 1001.5),
+            sample(28, 93.0, 1002.0),
+            sample(43, 93.0, 1002.0)
+        ))
+
+        assertEquals(2, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:27:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:28:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[1].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
+        assertEquals("2026-11-26T10:10:00Z", trips[1].endedAt)
+    }
+
     @Test fun closesTripAfterChargeStatusRemainsUnavailableForFifteenMinutes() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
