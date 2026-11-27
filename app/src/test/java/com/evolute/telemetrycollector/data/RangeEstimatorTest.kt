@@ -135,4 +135,49 @@ class RangeEstimatorTest {
         assertEquals(232.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
+
+    @Test fun ignoresStationarySocDropThatQuicklyRecoversWithoutAnActiveChargeSession() {
+        val stable = (0..8).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        }
+        val glitch = stable + listOf(
+            snapshot(80.0, 8.1, 9, """{"charge_session":{"state":"inactive"}}"""),
+            snapshot(96.0, 8.1, 10, """{"charge_session":{"state":"inactive"}}""")
+        )
+
+        assertEquals(192.0, RangeEstimator.estimate(glitch)!!, 0.001)
+        assertEquals(50.0, RangeEstimator.consumptionPer100Km(glitch)!!, 0.001)
+    }
+
+    @Test fun stationarySocRiseDuringConfirmedChargingStillResetsTheWindow() {
+        val stable = (0..8).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        }
+        val charging = stable + snapshot(
+            100.0, 8.0, 10,
+            """{"charge_session":{"state":"active"}}"""
+        )
+
+        assertNull(RangeEstimator.estimate(charging))
+        assertNull(RangeEstimator.consumptionPer100Km(charging))
+    }
+
+    @Test fun socOutlierFilteringNeverMutatesRawTelemetrySnapshots() {
+        val history = (0..8).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        } + listOf(
+            snapshot(80.0, 8.1, 9, """{"charge_session":{"state":"inactive"}}"""),
+            snapshot(96.0, 8.1, 10, """{"charge_session":{"state":"inactive"}}""")
+        )
+        val original = history.toList()
+
+        RangeEstimator.estimate(history)
+        RangeEstimator.consumptionPer100Km(history)
+
+        assertEquals(original, history)
+        assertEquals(11, history.size)
+        assertEquals(80.0, history[9].soc, 0.0)
+        assertEquals(96.0, history[10].soc, 0.0)
+    }
+
 }
