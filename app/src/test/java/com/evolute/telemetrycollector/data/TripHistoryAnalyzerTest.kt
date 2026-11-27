@@ -154,6 +154,27 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:05:00.001Z", trips[0].endedAt)
     }
 
+    @Test fun exactFifteenMinuteStationaryGapSplitsTrips() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            TelemetrySnapshot("2026-11-26T10:00:00Z", 90.0, 1000.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:01:00Z", 89.5, 1000.5, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:02:00Z", 89.0, 1001.0, null, true, true, "{}"),
+            // Exactly 15 minutes after the last movement closes the first trip.
+            TelemetrySnapshot("2026-11-26T10:17:00Z", 89.0, 1001.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:18:00Z", 88.5, 1001.5, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:19:00Z", 88.0, 1002.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:34:00Z", 88.0, 1002.0, null, true, true, "{}")
+        ))
+
+        assertEquals(2, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:18:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:19:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[1].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
+        assertEquals("2026-11-26T10:02:00Z", trips[1].endedAt)
+    }
+
     @Test fun odometerRollbackClosesCurrentTripAndStartsFreshBaseline() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
