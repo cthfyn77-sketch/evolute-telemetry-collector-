@@ -134,7 +134,8 @@ internal object TripHistoryAnalyzer {
                 continue
             }
 
-            if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
+            if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
+                chargeEndedAt == null) finishTrip()
 
             if (delta > MOVEMENT_EPSILON_KM) {
                 if (active == null) active = mutableListOf(previous, current)
