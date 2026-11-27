@@ -144,7 +144,7 @@ internal object TripConsumptionAnalyzer {
     fun summarize(trips: List<TripSummary>): TripHistoryStats {
         val points = trips.mapNotNull { trip ->
             val soc = trip.socUsedPercent ?: return@mapNotNull null
-            if (!trip.distanceKm.isFinite() || trip.distanceKm < 1.0 ||
+            if (trip.durationSeconds <= 0L || !trip.distanceKm.isFinite() || trip.distanceKm < 1.0 ||
                 !soc.isFinite() || soc <= 0.0 || soc > 100.0) return@mapNotNull null
             val rate = soc / trip.distanceKm * 100.0
             if (!rate.isFinite()) return@mapNotNull null
