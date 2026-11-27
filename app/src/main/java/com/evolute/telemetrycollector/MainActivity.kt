@@ -70,6 +70,7 @@ class MainActivity : Activity() {
     private lateinit var tripStatsValue: TextView
     private lateinit var tripConsumptionChart: TripConsumptionChartView
     private lateinit var chargingHistoryValue: TextView
+    private lateinit var chargeSessionValue: TextView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
     private var lastDistanceHistoryRecordCount = -1L
@@ -325,6 +326,20 @@ class MainActivity : Activity() {
         batteryMetricsValue.setLineSpacing(dp(2).toFloat(), 1f)
         batteryCard.addView(batteryMetricsValue)
         content.addView(batteryCard)
+
+        addGap(content, 10)
+        val chargeSessionCard = card()
+        chargeSessionCard.addView(text("ТЕКУЩАЯ ЗАРЯДНАЯ СЕССИЯ", 11f, accent, true))
+        addGap(chargeSessionCard, 6)
+        chargeSessionCard.addView(text(
+            "Данные отдельного EVACONNECT API · мощность и электрические параметры показываются только при наличии соответствующих полей",
+            9f, muted
+        ))
+        addGap(chargeSessionCard, 8)
+        chargeSessionValue = text("Ожидание данных зарядной сессии", 11f, white)
+        chargeSessionValue.setLineSpacing(dp(3).toFloat(), 1f)
+        chargeSessionCard.addView(chargeSessionValue)
+        content.addView(chargeSessionCard)
 
         addGap(content, 10)
         val batteryHistoryCard = card()
@@ -645,6 +660,7 @@ class MainActivity : Activity() {
         }
         rangeHistoryChart.setSnapshots(db.recentSnapshots(240))
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
+        chargeSessionValue.text = latest?.let { formatChargeSession(it.sensorsJson) } ?: "Ожидание данных зарядной сессии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
             refreshBatteryHistory(db)
             lastBatteryHistoryRecordCount = snapshotCount
@@ -960,6 +976,64 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun formatChargeSession(raw: String): String {
+        return try {
+            val root = JSONObject(raw)
+            val session = root.optJSONObject("charge_session")
+                ?: return "В снимке пока нет отдельного ответа зарядной сессии"
+            when (session.optString("state")) {
+                "inactive" -> return "Активная зарядка не обнаружена (EVACONNECT вернул отсутствие сессии)"
+                "unavailable" -> return "Статус зарядки неизвестен: запрос EVACONNECT недоступен (" + session.optString("error_type", "ошибка") + ")"
+                "active" -> Unit
+                else -> return "Неизвестный формат статуса зарядной сессии"
+            }
+            val data = session.optJSONObject("data")
+                ?: return "Сессия активна, но API не вернул объект с параметрами"
+            val fields = mutableListOf<String>()
+            val electrical = mutableListOf<String>()
+            fun walk(value: Any?, path: String, depth: Int) {
+                if (depth > 8 || fields.size >= 300) return
+                when (value) {
+                    is JSONObject -> {
+                        val keys = value.keys()
+                        while (keys.hasNext() && fields.size < 300) {
+                            val key = keys.next()
+                            val next = if (path.isEmpty()) key else path + "." + key
+                            walk(value.opt(key), next, depth + 1)
+                        }
+                    }
+                    is JSONArray -> {
+                        fields.add(path + ": [" + value.length() + " элементов]")
+                        for (i in 0 until minOf(value.length(), 12)) walk(value.opt(i), path + "[" + i + "]", depth + 1)
+                    }
+                    JSONObject.NULL -> fields.add(path + ": null")
+                    else -> {
+                        val line = path + ": " + value.toString().take(120)
+                        fields.add(line)
+                        val normalized = path.lowercase(java.util.Locale.ROOT).replace(Regex("[^a-zа-я0-9]"), "")
+                        if (listOf("power", "kw", "watt", "voltage", "volt", "current", "amp", "energy", "kwh").any { normalized.contains(it) }) electrical.add(line)
+                    }
+                }
+            }
+            walk(data, "", 0)
+            buildString {
+                append("Статус: зарядная сессия активна")
+                if (electrical.isNotEmpty()) {
+                    append("\\n\\nПОЛЯ МОЩНОСТИ И ЭЛЕКТРИЧЕСКИХ ПАРАМЕТРОВ\\n")
+                    append(electrical.take(30).joinToString("\\n"))
+                } else {
+                    append("\\n\\nПоля мощности, напряжения, тока или энергии в ответе пока не обнаружены.")
+                }
+                if (fields.isNotEmpty()) {
+                    append("\\n\\nПОЛЯ ОТВЕТА API\\n")
+                    append(fields.take(80).joinToString("\\n"))
+                } else append("\\nAPI вернул пустой объект сессии.")
+                if (fields.size > 80) append("\\n… показаны первые 80 полей")
+            }
+        } catch (_: Exception) {
+            "Не удалось разобрать ответ зарядной сессии"
+        }
+    }
     private fun formatApiFields(raw: String): String {
         return try {
             val root = JSONObject(raw)
