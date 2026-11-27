@@ -72,6 +72,7 @@ class MainActivity : Activity() {
     private lateinit var chargingHistoryValue: TextView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
+    private var lastDistanceHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -373,7 +374,6 @@ class MainActivity : Activity() {
         addGap(distanceChartCard, 8)
         distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
         distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
-        distanceChartCard.visibility = View.GONE
         content.addView(distanceChartCard)
 
         addGap(content, 12)
@@ -670,12 +670,18 @@ class MainActivity : Activity() {
             renderChargingHistory(fullHistory)
             lastTripHistoryRecordCount = snapshotCount
         }
-        // Keep time and mileage axes independent: time uses recent samples,
-        // distance uses the complete local history with parked samples collapsed.
+        // Keep time and mileage axes independent. The distance chart uses the full
+        // locally retained history; TelemetryChartView collapses parked samples.
         val recentHistory = db.recentSnapshots(240)
         timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
-        distanceChartCard.visibility = View.GONE
         timeChart.setSnapshots(recentHistory)
+        if (snapshotCount != lastDistanceHistoryRecordCount) {
+            val distanceHistory = db.allSnapshots(20000)
+            distanceChart.setSnapshots(distanceHistory)
+            val hasDistanceSpan = distanceHistory.map { it.odometer }.distinct().size >= 2
+            distanceChartCard.visibility = if (hasDistanceSpan) View.VISIBLE else View.GONE
+            lastDistanceHistoryRecordCount = snapshotCount
+        }
     }
 
 
