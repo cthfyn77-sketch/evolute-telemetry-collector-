@@ -11,6 +11,17 @@ _SENSITIVE_KEY = re.compile(
     r"user.?id|car.?id|vehicle.?id|(^|_)id$)",
     re.IGNORECASE,
 )
+# EVACONNECT also uses camelCase identifiers (accountId, ownerId, sessionId).
+_SENSITIVE_COMPACT_KEYS = frozenset({
+    "accountid", "ownerid", "customerid", "driverid", "deviceid",
+    "sessionid", "tripid", "tenantid", "organizationid", "userid",
+    "carid", "vehicleid", "widgetid", "userid",
+})
+
+
+def _is_sensitive_key(key: str) -> bool:
+    compact = re.sub(r"[^a-z0-9]", "", str(key).casefold())
+    return bool(_SENSITIVE_KEY.search(str(key))) or compact in _SENSITIVE_COMPACT_KEYS
 
 
 def _redact_api_value(value):
@@ -18,7 +29,7 @@ def _redact_api_value(value):
     if isinstance(value, dict):
         result = {}
         for key, item in value.items():
-            if _SENSITIVE_KEY.search(str(key)):
+            if _is_sensitive_key(str(key)):
                 result[str(key)] = "[REDACTED]"
             else:
                 result[str(key)] = _redact_api_value(item)
