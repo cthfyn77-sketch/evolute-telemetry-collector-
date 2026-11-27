@@ -47,6 +47,22 @@ class TripHistoryAnalyzerTest {
         assertTrue(trips.isEmpty())
     }
 
+    @Test fun sortsOutOfOrderTelemetryBeforeReconstructingTrips() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(2, 89.0, 1001.0),
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(3, 89.0, 1001.0),
+            sample(18, 89.0, 1001.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals("2026-11-26T10:00:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:02:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
+    }
+
     @Test fun ignoresShortOdometerNoise() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
