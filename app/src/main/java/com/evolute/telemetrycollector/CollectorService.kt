@@ -38,53 +38,55 @@ class CollectorService : Service() {
 
         pollJob = scope.launch {
             val tokenStore = KeystoreTokenStore(this@CollectorService)
-            try {
-                if (!Python.isStarted()) Python.start(AndroidPlatform(applicationContext))
-                val bridge = Python.getInstance().getModule("evaconnect_bridge")
-                while (isActive) {
-                    try {
-                        val saved = tokenStore.get() ?: throw IOException("Сначала выполните вход в аккаунт")
-                        val raw = bridge.callAttr(
-                            "fetch_telemetry",
-                            saved.access,
-                            saved.refresh
-                        ).toString()
-                        val result = JSONObject(raw)
-
-                        // evaconnect rotates refresh tokens on HTTP 401. Persist the
-                        // returned pair immediately, still encrypted by Android Keystore.
-                        val access = result.optString("access_token", saved.access).ifBlank { saved.access }
-                        val refresh = result.optString("refresh_token", saved.refresh).ifBlank { saved.refresh }
-                        if (access != saved.access || refresh != saved.refresh) {
-                            tokenStore.save(saved.copy(access = access, refresh = refresh))
-                        }
-
-                        if (!result.optBoolean("ok", false)) {
-                            throw IOException(result.optString("error", "evaconnect не вернул телеметрию"))
-                        }
-
-                        val telemetry = ApiClient.Telemetry(
-                            soc = result.getDouble("soc"),
-                            odometer = result.getDouble("odometer"),
-                            stockRange = if (result.isNull("stock_range")) null else result.getDouble("stock_range"),
-                            online = result.optBoolean("online", false),
-                            ready = result.optBoolean("ready", false),
-                            updatedAt = result.optString("updated_at").takeIf { it.isNotBlank() },
-                            sensorsJson = result.optString("sensors_json", "{}")
-                        )
-                        SnapshotDb.get(this@CollectorService).insert(telemetry)
-                        updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        updateNotification("Ошибка evaconnect: ${e.message?.take(100) ?: e.javaClass.simpleName}")
+            while (isActive) {
+                try {
+                    // Initialize Python and resolve the bridge inside the retry loop.
+                    // A transient startup/import failure must not permanently stop polling.
+                    if (!Python.isStarted()) {
+                        Python.start(AndroidPlatform(applicationContext))
                     }
-                    delay(30_000)
+                    val bridge = Python.getInstance().getModule("evaconnect_bridge")
+                    val saved = tokenStore.get()
+                        ?: throw IOException("Сначала выполните вход в аккаунт")
+                    val raw = bridge.callAttr(
+                        "fetch_telemetry",
+                        saved.access,
+                        saved.refresh
+                    ).toString()
+                    val result = JSONObject(raw)
+
+                    // evaconnect rotates refresh tokens on HTTP 401. Persist the
+                    // returned pair immediately, still encrypted by Android Keystore.
+                    val access = result.optString("access_token", saved.access).ifBlank { saved.access }
+                    val refresh = result.optString("refresh_token", saved.refresh).ifBlank { saved.refresh }
+                    if (access != saved.access || refresh != saved.refresh) {
+                        tokenStore.save(saved.copy(access = access, refresh = refresh))
+                    }
+
+                    if (!result.optBoolean("ok", false)) {
+                        throw IOException(result.optString("error", "evaconnect не вернул телеметрию"))
+                    }
+
+                    val telemetry = ApiClient.Telemetry(
+                        soc = result.getDouble("soc"),
+                        odometer = result.getDouble("odometer"),
+                        stockRange = if (result.isNull("stock_range")) null else result.getDouble("stock_range"),
+                        online = result.optBoolean("online", false),
+                        ready = result.optBoolean("ready", false),
+                        updatedAt = result.optString("updated_at").takeIf { it.isNotBlank() },
+                        sensorsJson = result.optString("sensors_json", "{}")
+                    )
+                    SnapshotDb.get(this@CollectorService).insert(telemetry)
+                    updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Keep the foreground service alive and retry on the next poll.
+                    updateNotification(
+                        "Ошибка evaconnect: ${e.message?.take(100) ?: e.javaClass.simpleName}"
+                    )
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                updateNotification("Не удалось запустить evaconnect: ${e.message?.take(100) ?: e.javaClass.simpleName}")
+                delay(30_000)
             }
         }
         return START_STICKY
