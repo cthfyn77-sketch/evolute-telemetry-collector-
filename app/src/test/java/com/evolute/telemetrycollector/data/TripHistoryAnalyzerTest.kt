@@ -69,6 +69,24 @@ class TripHistoryAnalyzerTest {
         assertEquals("Unexpected trip end after charge timeout: $trips", "2026-11-26T10:25:00Z", trips[0].endedAt)
     }
 
+    @Test fun joinsMovementExactlyTenMinutesAfterChargingEnds() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            chargeSample(25, 94.0, 1001.0, "active"),
+            chargeSample(30, 94.0, 1001.0, "inactive"),
+            sample(40, 93.5, 1001.5), // exactly ten minutes after charging ended
+            sample(41, 93.0, 1002.0),
+            sample(56, 93.0, 1002.0)
+        ))
+
+        assertEquals("Movement at the exact ten-minute boundary must resume the trip: $trips", 1, trips.size)
+        assertEquals(2.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:41:00Z", trips[0].endedAt)
+    }
+
     @Test fun separatesTripsAfterFifteenMinuteStop() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
