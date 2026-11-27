@@ -140,6 +140,23 @@ class TripHistoryAnalyzerTest {
         assertNull(stats.averagePercentPer100Km)
     }
 
+    @Test fun socIncreaseDuringTripIsNotReportedAsNegativeConsumption() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 50.0, 1000.0),
+            sample(1, 50.5, 1000.5),
+            sample(2, 51.0, 1001.0),
+            sample(3, 51.0, 1001.0),
+            sample(18, 51.0, 1001.0)
+        ))
+        assertEquals(1, trips.size)
+        assertNull(trips[0].socUsedPercent)
+
+        val stats = TripConsumptionAnalyzer.summarize(trips)
+        assertEquals(1, stats.tripCount)
+        assertEquals(0, stats.measuredTrips)
+        assertNull(stats.averagePercentPer100Km)
+    }
+
     @Test fun returnsNoAverageWhenTripsHaveNoReliableSocMeasurement() {
         val trips = listOf(
             TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 8.0, 600, null),
