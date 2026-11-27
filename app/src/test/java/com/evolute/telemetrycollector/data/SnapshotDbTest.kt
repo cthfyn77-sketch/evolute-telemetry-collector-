@@ -106,6 +106,31 @@ class SnapshotDbTest {
         assertEquals(serverTime, db.allSnapshots().single().apiUpdatedAt)
     }
 
+    @Test fun skipsDuplicateServerTimestampWithoutAddingAnotherRow() {
+        val timestamp = "2026-11-27T10:00:00Z"
+        val first = db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, timestamp))
+        val duplicate = db.insert(ApiClient.Telemetry(63.0, 37166.0, 279.0, true, false, timestamp))
+
+        assertEquals(TelemetryFreshness.ACCEPT, first)
+        assertEquals(TelemetryFreshness.DUPLICATE, duplicate)
+        assertEquals(1L, db.count())
+        assertEquals(64.0, db.latestSnapshot()!!.soc, 0.001)
+    }
+
+    @Test fun skipsOlderServerTimestampThatArrivesAfterNewerSnapshot() {
+        val newer = db.insert(ApiClient.Telemetry(
+            64.0, 37165.0, 280.0, true, false, "2026-11-27T10:01:00Z"
+        ))
+        val stale = db.insert(ApiClient.Telemetry(
+            63.0, 37166.0, 279.0, true, false, "2026-11-27T10:00:00Z"
+        ))
+
+        assertEquals(TelemetryFreshness.ACCEPT, newer)
+        assertEquals(TelemetryFreshness.STALE, stale)
+        assertEquals(1L, db.count())
+        assertEquals(64.0, db.latestSnapshot()!!.soc, 0.001)
+    }
+
     @Test fun batteryHistoryCutoffUsesChronologicalTimeNotTimestampTextOrder() {
         fun insertAt(timestamp: String, soc: Double) {
             db.writableDatabase.execSQL(
@@ -124,4 +149,5 @@ class SnapshotDbTest {
         assertEquals(70.0, history[0].soc, 0.001)
         assertEquals(71.0, history[1].soc, 0.001)
     }
+
 }
