@@ -36,6 +36,15 @@ class ChargingSessionAnalyzerTest {
         assertEquals(5L, sessions[0].durationMinutes)
     }
 
+    @Test fun doesNotReportOngoingChargingSessionAsCompleted() {
+        val sessions = ChargingSessionAnalyzer.analyze(listOf(
+            sample(0, 40.0),
+            sample(1, 40.5),
+            sample(2, 40.7)
+        ))
+        assertTrue(sessions.isEmpty())
+    }
+
     @Test fun ignoresSocRiseWhileDriving() {
         val sessions = ChargingSessionAnalyzer.analyze(listOf(
             sample(0, 40.0, 1000.0), sample(1, 40.5, 1000.5),
