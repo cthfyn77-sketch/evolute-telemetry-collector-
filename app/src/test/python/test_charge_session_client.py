@@ -75,6 +75,33 @@ class ChargeSessionClientTest(unittest.TestCase):
         finally:
             client.close()
 
+    def test_malformed_json_is_reported_without_body(self):
+        client = self.make_client(200, content=b"{not-json")
+        try:
+            with self.assertRaises(EvoluteAPIError) as raised:
+                client.get_charge_session()
+            self.assertEqual(raised.exception.status_code, 200)
+            self.assertNotIn("not-json", str(raised.exception))
+        finally:
+            client.close()
+
+    def test_transport_timeout_is_propagated(self):
+        def handler(request):
+            raise httpx.ReadTimeout("upstream timed out", request=request)
+
+        store = TokenStore(path=None)
+        store.access_token = "test-access"
+        client = EvoluteClient(
+            base_url="https://unit.test",
+            token_store=store,
+            transport=httpx.MockTransport(handler),
+        )
+        try:
+            with self.assertRaises(httpx.ReadTimeout):
+                client.get_charge_session()
+        finally:
+            client.close()
+
     def test_server_error_is_propagated_with_status(self):
         client = self.make_client(503, {"message": "temporarily unavailable"})
         try:
