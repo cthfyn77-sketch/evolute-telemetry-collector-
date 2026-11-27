@@ -107,6 +107,29 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:10:00Z", trips[0].startedAt)
     }
 
+    @Test fun odometerRollbackClosesCurrentTripAndStartsFreshBaseline() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            // Odometer is corrected backwards and then continues from the new value.
+            sample(3, 88.5, 990.0),
+            sample(4, 88.0, 990.5),
+            sample(5, 87.5, 991.0),
+            sample(20, 87.5, 991.0)
+        ))
+
+        assertEquals(2, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:03:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:05:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[1].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
+        assertEquals("2026-11-26T10:02:00Z", trips[1].endedAt)
+        assertEquals(0.5, trips[0].socUsedPercent!!, 0.001)
+        assertEquals(1.0, trips[1].socUsedPercent!!, 0.001)
+    }
+
     @Test fun calculatesWeightedConsumptionFromTripsAtLeastOneKm() {
         val trips = listOf(
             TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 10.0, 600, 5.0),
