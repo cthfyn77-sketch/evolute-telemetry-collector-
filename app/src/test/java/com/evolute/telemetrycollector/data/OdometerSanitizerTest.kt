@@ -34,7 +34,6 @@ class OdometerSanitizerTest {
         )
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
     }
-}
 
     @Test fun removesShortLivedBackwardsOdometerDrop() {
         val history = listOf(
@@ -78,3 +77,4 @@ class OdometerSanitizerTest {
         )
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
     }
+}
