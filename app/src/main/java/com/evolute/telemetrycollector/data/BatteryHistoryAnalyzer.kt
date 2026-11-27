@@ -92,12 +92,16 @@ internal object BatteryHistoryAnalyzer {
         return rejected
     }
 
+    /** Exact 10-minute threshold shared by text summaries and chart labels. */
+    fun hasTelemetryGap(points: List<MetricPoint>): Boolean =
+        points.zipWithNext().any {
+            Duration.between(it.first.at, it.second.at) > Duration.ofMinutes(10)
+        }
+
     fun render(report: Report): String {
         if (report.metrics.isEmpty()) return "История появится после получения числовых датчиков напряжения, тока, температуры или SOH."
         val lines = report.metrics.take(12).map { m ->
-            val hasGap = m.points.zipWithNext().any {
-                Duration.between(it.first.at, it.second.at) > Duration.ofMinutes(10)
-            }
+            val hasGap = hasTelemetryGap(m.points)
             val delta = m.points.last().value - m.points.first().value
             val change = if (m.points.size >= 2 && !hasGap) " · изменение за период " + signed(delta)
                 else if (hasGap) " · есть пропуск данных" else ""
