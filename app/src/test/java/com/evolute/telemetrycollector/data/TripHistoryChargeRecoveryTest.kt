@@ -54,4 +54,27 @@ class TripHistoryChargeRecoveryTest {
         assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
         assertEquals("2026-11-26T10:27:00Z", trips[1].endedAt)
     }
+
+    @Test fun socRiseDuringUnavailablePartOfChargeSessionInvalidatesTripConsumption() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample("2026-11-26T10:00:00Z", 90.0, 1000.0),
+            sample("2026-11-26T10:01:00Z", 89.5, 1000.5),
+            sample("2026-11-26T10:02:00Z", 89.0, 1001.0),
+            sample("2026-11-26T10:10:00Z", 89.0, 1001.0, "active"),
+            // SOC rises while the separate charge endpoint is temporarily unavailable.
+            sample("2026-11-26T10:12:00Z", 95.0, 1001.0, "unavailable"),
+            // A later reading returns to the pre-charge level; omitting the unavailable
+            // sample would incorrectly make the full trip look like valid consumption.
+            sample("2026-11-26T10:14:00Z", 89.0, 1001.0, "active"),
+            sample("2026-11-26T10:20:00Z", 89.0, 1001.0, "inactive"),
+            sample("2026-11-26T10:25:00Z", 88.5, 1001.5),
+            sample("2026-11-26T10:26:00Z", 88.0, 1002.0),
+            sample("2026-11-26T10:41:00Z", 88.0, 1002.0)
+        ))
+
+        assertEquals("Charging SOC must remain part of the trip's reliability check: $trips", 1, trips.size)
+        assertEquals(2.0, trips.single().distanceKm, 0.001)
+        assertEquals(null, trips.single().socUsedPercent)
+    }
+
 }
