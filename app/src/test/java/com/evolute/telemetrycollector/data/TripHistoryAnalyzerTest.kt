@@ -49,6 +49,50 @@ class TripHistoryAnalyzerTest {
         assertNull("SOC rise during charging must invalidate trip consumption", trips[0].socUsedPercent)
     }
 
+    @Test fun keepsTripOpenAcrossBriefUnavailableChargeStatus() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            chargeSample(12, 94.0, 1001.0, "unavailable"),
+            chargeSample(14, 94.0, 1001.0, "active"),
+            chargeSample(25, 94.0, 1001.0, "active"),
+            chargeSample(26, 94.0, 1001.0, "inactive"),
+            sample(30, 93.5, 1001.5),
+            sample(31, 93.0, 1002.0),
+            sample(46, 93.0, 1002.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(2.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
+    }
+
+    @Test fun closesTripAfterChargeStatusRemainsUnavailableForFifteenMinutes() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            chargeSample(12, 94.0, 1001.0, "active"),
+            chargeSample(13, 94.0, 1001.0, "unavailable"),
+            chargeSample(27, 94.0, 1001.0, "unavailable"),
+            chargeSample(29, 94.0, 1001.0, "unavailable"),
+            sample(30, 93.5, 1001.5),
+            sample(31, 93.0, 1002.0),
+            sample(46, 93.0, 1002.0)
+        ))
+
+        assertEquals(2, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:29:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[1].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
+        assertEquals("2026-11-26T10:27:00Z", trips[1].endedAt)
+    }
+
     @Test fun closesTripTenMinutesAfterChargeWhenMovementDoesNotResume() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
