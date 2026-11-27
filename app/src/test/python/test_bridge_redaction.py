@@ -13,6 +13,8 @@ class BridgeRedactionTest(unittest.TestCase):
             "stationId": "station-secret",
             "transactionId": "transaction-secret",
             "connectorId": "connector-secret",
+            "licensePlate": "plate-secret",
+            "registrationNumber": "registration-secret",
             "sensors": {
                 "sessionId": "session-secret",
                 "batteryPercentage": 87,
@@ -28,6 +30,8 @@ class BridgeRedactionTest(unittest.TestCase):
         self.assertEqual(redacted["stationId"], "[REDACTED]")
         self.assertEqual(redacted["transactionId"], "[REDACTED]")
         self.assertEqual(redacted["connectorId"], "[REDACTED]")
+        self.assertEqual(redacted["licensePlate"], "[REDACTED]")
+        self.assertEqual(redacted["registrationNumber"], "[REDACTED]")
         self.assertEqual(redacted["sensors"]["sessionId"], "[REDACTED]")
         self.assertEqual(redacted["sensors"]["batteryPercentage"], 87)
 
