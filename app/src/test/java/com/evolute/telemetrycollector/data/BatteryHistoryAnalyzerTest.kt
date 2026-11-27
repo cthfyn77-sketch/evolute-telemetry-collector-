@@ -64,5 +64,74 @@ class BatteryHistoryAnalyzerTest {
         val report = BatteryHistoryAnalyzer.analyze(history)
         assertEquals(1, report.metrics.count { it.path == "soc" || it.path == "SOC" })
         assertEquals(2, report.metrics.single { it.path == "soc" }.samples)
+    } 
+    @Test fun fillsMissingNestedSocFromSnapshotWithoutDroppingOtherSocSamples() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T00:00:00Z", 80.0, 100.0, null, true, true, """{"soc":80,"batteryVoltage":350}"""),
+            TelemetrySnapshot("2026-11-26T00:00:30Z", 79.0, 100.1, null, true, true, """{"batteryVoltage":351}"""),
+            TelemetrySnapshot("2026-11-26T00:01:00Z", 78.0, 100.2, null, true, true, """{"soc":78,"batteryVoltage":352}""")
+        )
+        val soc = BatteryHistoryAnalyzer.analyze(history).metrics.single { it.path == "soc" }
+        assertEquals(3, soc.samples)
+        assertEquals(79.0, soc.points[1].value, 0.001)
+        assertEquals(78.0, soc.latest, 0.001)
+    }
+
+
+    @Test fun doesNotFilterSpikeAcrossGapLongerThanExactlyThreeMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:03:01Z", """{"batteryVoltage":500}"""),
+            sample("2026-11-26T00:03:30Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.isEmpty())
+        val metric = report.metrics.single { it.path == "batteryVoltage" }
+        assertEquals(3, metric.samples)
+        assertEquals(500.0, metric.max, 0.001)
+    }
+
+    @Test fun renderReportsGapLongerThanExactlyTenMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:10:01Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
+    }
+
+    @Test fun filtersSpikeWhenGapIsExactlyThreeMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:03:00Z", """{"batteryVoltage":500}"""),
+            sample("2026-11-26T00:03:30Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.any { it.contains("одиночный скачок") })
+        assertEquals(2, report.metrics.single { it.path == "batteryVoltage" }.samples)
+    }
+
+    @Test fun doesNotReportGapWhenIntervalIsExactlyTenMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:10:00Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(!BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
+    }
+
+    
+    @Test fun chartGapDetectionUsesExactTenMinuteThreshold() {
+        val start = java.time.Instant.parse("2026-11-27T12:00:00Z")
+        val exactlyTenMinutes = listOf(
+            BatteryHistoryAnalyzer.MetricPoint(start, 350.0),
+            BatteryHistoryAnalyzer.MetricPoint(start.plusSeconds(600), 351.0)
+        )
+        val tenMinutesOneSecond = listOf(
+            BatteryHistoryAnalyzer.MetricPoint(start, 350.0),
+            BatteryHistoryAnalyzer.MetricPoint(start.plusSeconds(601), 351.0)
+        )
+        assertTrue(!BatteryHistoryAnalyzer.hasTelemetryGap(exactlyTenMinutes))
+        assertTrue(BatteryHistoryAnalyzer.hasTelemetryGap(tenMinutesOneSecond))
     }
 }

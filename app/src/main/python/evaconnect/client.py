@@ -311,10 +311,24 @@ class EvoluteClient:
             if exc.status_code == 404:
                 return None
             raise
-        data = self._json(response)
+        try:
+            data = self._json(response)
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise EvoluteAPIError(
+                "GET /charge-service/session/v2/current returned invalid JSON",
+                status_code=response.status_code,
+            ) from exc
         if data is None or data == {}:
             return None
-        return ChargeSession.model_validate(data)
+        if not isinstance(data, dict):
+            raise EvoluteAPIError(
+                "GET /charge-service/session/v2/current returned a non-object response"
+            )
+        session = ChargeSession.model_validate(data)
+        # Preserve the exact decoded API payload; the Android bridge redacts
+        # credentials and account/vehicle identifiers before local persistence.
+        session.api_raw = data
+        return session
 
     # --- trips -------------------------------------------------------------
 

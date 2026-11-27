@@ -55,10 +55,10 @@ internal object RangeEstimator {
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
 
-            // Any telemetry outage invalidates the active interval and rolling
-            // window. Never carry consumption across missing samples.
+            // Keep the last valid rolling window during a telemetry outage.
+            // Restart the unfinished interval at the first restored sample so
+            // missing distance and SOC consumption are never fabricated.
             if (isTelemetryGap(previous, current)) {
-                validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
                 nextCheckpoint = baselineDistance + STEP_KM

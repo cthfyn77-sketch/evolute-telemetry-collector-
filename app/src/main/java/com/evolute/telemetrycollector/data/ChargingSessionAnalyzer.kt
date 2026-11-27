@@ -59,7 +59,7 @@ internal object ChargingSessionAnalyzer {
             val stationary = (current.odometer - previous.odometer).let {
                 it.isFinite() && kotlin.math.abs(it) <= ODOMETER_MOVEMENT_KM
             }
-            if (gap <= 0L || gap > MAX_SAMPLE_GAP_MILLIS || !validSoc || !stationary) {
+            if (gap <= 0L || gap >= MAX_SAMPLE_GAP_MILLIS || !validSoc || !stationary) {
                 finish()
                 continue
             }
@@ -69,10 +69,19 @@ internal object ChargingSessionAnalyzer {
                 if (start == null) start = previous
                 latest = current
             } else if (start != null) {
-                if (rise < -MIN_SOC_RISE) finish()
+                if (rise < -MIN_SOC_RISE) {
+                    finish()
+                } else if (current.soc > (latest?.soc ?: current.soc)) {
+                    // Once a session has started, retain incremental SOC gains
+                    // smaller than the noise threshold. Otherwise a sequence of
+                    // +0.1% samples would be silently omitted from the session.
+                    latest = current
+                }
             }
         }
-        finish()
+        // Do not finalize the last session merely because the loaded history ended.
+        // It is considered complete only after a real closing signal (gap, movement,
+        // invalid sample, or SOC decrease) is observed.
         return sessions.sortedByDescending {
             try { Instant.parse(it.startedAt) } catch (_: Exception) { Instant.EPOCH }
         }

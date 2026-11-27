@@ -113,4 +113,26 @@ class RangeEstimatorTest {
         assertEquals(242.0, RangeEstimator.estimate(history)!!, 0.001)
         assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
     }
+
+    @Test fun preservesLastValidWindowDuringTelemetryOutage() {
+        val beforeOutage = (0..8).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        }
+        val offline = snapshot(96.0, 20.0, 20)
+        val history = beforeOutage + offline
+        assertEquals(192.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(50.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
+
+    @Test fun doesNotCountMissingDistanceAfterTelemetryOutage() {
+        val beforeOutage = (0..8).map { km ->
+            snapshot(100.0 - km * 0.5, km.toDouble(), km)
+        }
+        val restored = snapshot(96.0, 20.0, 20)
+        val history = beforeOutage + restored + (1..8).map { km ->
+            snapshot(96.0 - km * 0.4, 20.0 + km, 20 + km)
+        }
+        assertEquals(232.0, RangeEstimator.estimate(history)!!, 0.001)
+        assertEquals(40.0, RangeEstimator.consumptionPer100Km(history)!!, 0.001)
+    }
 }

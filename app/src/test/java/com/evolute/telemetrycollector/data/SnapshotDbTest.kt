@@ -74,19 +74,27 @@ class SnapshotDbTest {
         assertEquals(250, db.recentSnapshots(1000).size)
     }
 
-    @Test fun analyticsHistoryLoadsEveryRowWithoutSensorPayloads() {
-        db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, "server-1", """{"large":"payload"}"""))
-        db.insert(ApiClient.Telemetry(63.0, 37166.0, 279.0, true, false, "server-2", """{"another":"payload"}"""))
+    @Test fun analyticsHistoryRetainsOnlyCompactChargeSessionState() {
+        db.insert(ApiClient.Telemetry(
+            64.0, 37165.0, 280.0, true, false, "server-1",
+            """{"large":"payload","charge_session":{"state":"active","data":{"detail":"ignored"}}}"""
+        ))
+        db.insert(ApiClient.Telemetry(
+            63.0, 37166.0, 279.0, true, false, "server-2",
+            """{"another":"payload","charge_session":{"state":"inactive"}}"""
+        ))
+        db.insert(ApiClient.Telemetry(62.0, 37167.0, 278.0, true, false, "server-3", """{"sensors":{}}"""))
 
         val history = db.analyticsHistorySnapshots()
 
-        assertEquals(2, history.size)
+        assertEquals(3, history.size)
         assertEquals(64.0, history[0].soc, 0.001)
         assertEquals(37165.0, history[0].odometer, 0.001)
         assertEquals(63.0, history[1].soc, 0.001)
         assertEquals(37166.0, history[1].odometer, 0.001)
-        assertEquals("{}", history[0].sensorsJson)
-        assertEquals("{}", history[1].sensorsJson)
+        assertEquals("""{"charge_session":{"state":"active"}}""", history[0].sensorsJson)
+        assertEquals("""{"charge_session":{"state":"inactive"}}""", history[1].sensorsJson)
+        assertEquals("{}", history[2].sensorsJson)
         assertNull(history[0].stockRange)
         assertFalse(history[0].online)
         assertFalse(history[0].ready)
@@ -105,4 +113,49 @@ class SnapshotDbTest {
         assertEquals(serverTime, db.recentSnapshots().single().apiUpdatedAt)
         assertEquals(serverTime, db.allSnapshots().single().apiUpdatedAt)
     }
+
+    @Test fun skipsDuplicateServerTimestampWithoutAddingAnotherRow() {
+        val timestamp = "2026-11-27T10:00:00Z"
+        val first = db.insert(ApiClient.Telemetry(64.0, 37165.0, 280.0, true, false, timestamp))
+        val duplicate = db.insert(ApiClient.Telemetry(63.0, 37166.0, 279.0, true, false, timestamp))
+
+        assertEquals(TelemetryFreshness.ACCEPT, first)
+        assertEquals(TelemetryFreshness.DUPLICATE, duplicate)
+        assertEquals(1L, db.count())
+        assertEquals(64.0, db.latestSnapshot()!!.soc, 0.001)
+    }
+
+    @Test fun skipsOlderServerTimestampThatArrivesAfterNewerSnapshot() {
+        val newer = db.insert(ApiClient.Telemetry(
+            64.0, 37165.0, 280.0, true, false, "2026-11-27T10:01:00Z"
+        ))
+        val stale = db.insert(ApiClient.Telemetry(
+            63.0, 37166.0, 279.0, true, false, "2026-11-27T10:00:00Z"
+        ))
+
+        assertEquals(TelemetryFreshness.ACCEPT, newer)
+        assertEquals(TelemetryFreshness.STALE, stale)
+        assertEquals(1L, db.count())
+        assertEquals(64.0, db.latestSnapshot()!!.soc, 0.001)
+    }
+
+    @Test fun batteryHistoryCutoffUsesChronologicalTimeNotTimestampTextOrder() {
+        fun insertAt(timestamp: String, soc: Double) {
+            db.writableDatabase.execSQL(
+                "INSERT INTO snapshots(captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json) VALUES(?,NULL,?,?,NULL,1,1,'{}')",
+                arrayOf<Any?>(timestamp, soc, 1000.0)
+            )
+        }
+
+        insertAt("2026-11-27T11:59:59.9Z", 69.0)
+        insertAt("2026-11-27T12:00:00Z", 70.0)
+        insertAt("2026-11-27T12:00:00.1Z", 71.0)
+
+        val history = db.batteryHistorySnapshots("2026-11-27T12:00:00Z")
+
+        assertEquals(2, history.size)
+        assertEquals(70.0, history[0].soc, 0.001)
+        assertEquals(71.0, history[1].soc, 0.001)
+    }
+
 }

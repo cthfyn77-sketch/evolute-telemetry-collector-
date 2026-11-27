@@ -70,6 +70,7 @@ class MainActivity : Activity() {
     private lateinit var tripStatsValue: TextView
     private lateinit var tripConsumptionChart: TripConsumptionChartView
     private lateinit var chargingHistoryValue: TextView
+    private lateinit var chargeSessionValue: TextView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
     private var lastDistanceHistoryRecordCount = -1L
@@ -325,6 +326,20 @@ class MainActivity : Activity() {
         batteryMetricsValue.setLineSpacing(dp(2).toFloat(), 1f)
         batteryCard.addView(batteryMetricsValue)
         content.addView(batteryCard)
+
+        addGap(content, 10)
+        val chargeSessionCard = card()
+        chargeSessionCard.addView(text("ТЕКУЩАЯ ЗАРЯДНАЯ СЕССИЯ", 11f, accent, true))
+        addGap(chargeSessionCard, 6)
+        chargeSessionCard.addView(text(
+            "Данные отдельного EVACONNECT API · мощность и электрические параметры показываются только при наличии соответствующих полей",
+            9f, muted
+        ))
+        addGap(chargeSessionCard, 8)
+        chargeSessionValue = text("Ожидание данных зарядной сессии", 11f, white)
+        chargeSessionValue.setLineSpacing(dp(3).toFloat(), 1f)
+        chargeSessionCard.addView(chargeSessionValue)
+        content.addView(chargeSessionCard)
 
         addGap(content, 10)
         val batteryHistoryCard = card()
@@ -645,6 +660,7 @@ class MainActivity : Activity() {
         }
         rangeHistoryChart.setSnapshots(db.recentSnapshots(240))
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
+        chargeSessionValue.text = latest?.let { formatChargeSession(it.sensorsJson) } ?: "Ожидание данных зарядной сессии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
             refreshBatteryHistory(db)
             lastBatteryHistoryRecordCount = snapshotCount
@@ -792,6 +808,7 @@ class MainActivity : Activity() {
                 else -> 10
             }
         }
+        var periodControlsInserted = false
         prioritized.take(10).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
@@ -800,16 +817,15 @@ class MainActivity : Activity() {
                     key.contains("12vbatteryvoltage") ||
                         listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) }
                 }
-            if (isVoltageMetric) {
+            if (isVoltageMetric && !periodControlsInserted) {
                 addGap(batteryHistoryCharts, 5)
                 batteryHistoryCharts.addView(batteryHistoryPeriodControls)
                 addGap(batteryHistoryCharts, 5)
+                periodControlsInserted = true
             } else {
                 addGap(batteryHistoryCharts, 3)
             }
-            val hasGap = metric.points.zipWithNext().any {
-                java.time.Duration.between(it.first.at, it.second.at).toMinutes() > 10
-            }
+            val hasGap = BatteryHistoryAnalyzer.hasTelemetryGap(metric.points)
             val delta = metric.points.last().value - metric.points.first().value
             val trend = if (metric.points.size >= 2 && !hasGap) {
                 " · изменение " + (if (delta > 0) "+" else "") +
@@ -849,6 +865,9 @@ class MainActivity : Activity() {
                 }
             }
         }
+        // The period selector is a single View and must only be attached once.
+        // If no voltage metric is available, keep it visible at the top of the history charts.
+        if (!periodControlsInserted) batteryHistoryCharts.addView(batteryHistoryPeriodControls, 0)
         if (prioritized.size > 10) {
             addGap(batteryHistoryCharts, 6)
             batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 10) + " параметров доступны в текстовой сводке выше.", 9f, muted))
@@ -878,7 +897,11 @@ class MainActivity : Activity() {
             .withZone(java.time.ZoneId.systemDefault())
         tripHistoryValue.text = trips.joinToString("\n\n") { trip ->
             val date = formatter.format(java.time.Instant.parse(trip.startedAt))
-            val durationMinutes = (trip.durationSeconds / 60).coerceAtLeast(1)
+            val durationLabel = if (trip.durationSeconds < 60L) {
+                "меньше 1 мин"
+            } else {
+                "${trip.durationSeconds / 60} мин"
+            }
             val soc = trip.socUsedPercent?.let { " · SOC −${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: " · SOC —"
             val rate = if (trip.distanceKm >= 1.0 && trip.socUsedPercent != null && trip.socUsedPercent > 0.0) {
                 " · ${String.format(java.util.Locale.US, "%.1f", trip.socUsedPercent / trip.distanceKm * 100.0)}%/100 км"
@@ -886,7 +909,7 @@ class MainActivity : Activity() {
             val speed = trip.averageSpeedKmh?.let {
                 " · ср. ${String.format(java.util.Locale.US, "%.1f", it)} км/ч"
             } ?: ""
-            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate$speed"
+            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · $durationLabel$soc$rate$speed"
         }
     }
 
@@ -953,6 +976,64 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun formatChargeSession(raw: String): String {
+        return try {
+            val root = JSONObject(raw)
+            val session = root.optJSONObject("charge_session")
+                ?: return "В снимке пока нет отдельного ответа зарядной сессии"
+            when (session.optString("state")) {
+                "inactive" -> return "Активная зарядка не обнаружена (EVACONNECT вернул отсутствие сессии)"
+                "unavailable" -> return "Статус зарядки неизвестен: запрос EVACONNECT недоступен (" + session.optString("error_type", "ошибка") + ")"
+                "active" -> Unit
+                else -> return "Неизвестный формат статуса зарядной сессии"
+            }
+            val data = session.optJSONObject("data")
+                ?: return "Сессия активна, но API не вернул объект с параметрами"
+            val fields = mutableListOf<String>()
+            val electrical = mutableListOf<String>()
+            fun walk(value: Any?, path: String, depth: Int) {
+                if (depth > 8 || fields.size >= 300) return
+                when (value) {
+                    is JSONObject -> {
+                        val keys = value.keys()
+                        while (keys.hasNext() && fields.size < 300) {
+                            val key = keys.next()
+                            val next = if (path.isEmpty()) key else path + "." + key
+                            walk(value.opt(key), next, depth + 1)
+                        }
+                    }
+                    is JSONArray -> {
+                        fields.add(path + ": [" + value.length() + " элементов]")
+                        for (i in 0 until minOf(value.length(), 12)) walk(value.opt(i), path + "[" + i + "]", depth + 1)
+                    }
+                    JSONObject.NULL -> fields.add(path + ": null")
+                    else -> {
+                        val line = path + ": " + value.toString().take(120)
+                        fields.add(line)
+                        val normalized = path.lowercase(java.util.Locale.ROOT).replace(Regex("[^a-zа-я0-9]"), "")
+                        if (listOf("power", "kw", "watt", "voltage", "volt", "current", "amp", "energy", "kwh").any { normalized.contains(it) }) electrical.add(line)
+                    }
+                }
+            }
+            walk(data, "", 0)
+            buildString {
+                append("Статус: зарядная сессия активна")
+                if (electrical.isNotEmpty()) {
+                    append("\n\nПОЛЯ МОЩНОСТИ И ЭЛЕКТРИЧЕСКИХ ПАРАМЕТРОВ\n")
+                    append(electrical.take(30).joinToString("\n"))
+                } else {
+                    append("\n\nПоля мощности, напряжения, тока или энергии в ответе пока не обнаружены.")
+                }
+                if (fields.isNotEmpty()) {
+                    append("\n\nПОЛЯ ОТВЕТА API\n")
+                    append(fields.take(80).joinToString("\n"))
+                } else append("\nAPI вернул пустой объект сессии.")
+                if (fields.size > 80) append("\n… показаны первые 80 полей")
+            }
+        } catch (_: Exception) {
+            "Не удалось разобрать ответ зарядной сессии"
+        }
+    }
     private fun formatApiFields(raw: String): String {
         return try {
             val root = JSONObject(raw)

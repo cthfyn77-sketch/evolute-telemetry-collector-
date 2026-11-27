@@ -11,6 +11,22 @@ _SENSITIVE_KEY = re.compile(
     r"user.?id|car.?id|vehicle.?id|(^|_)id$)",
     re.IGNORECASE,
 )
+# EVACONNECT also uses camelCase identifiers (accountId, ownerId, sessionId).
+_SENSITIVE_COMPACT_KEYS = frozenset({
+    "accountid", "ownerid", "customerid", "driverid", "deviceid",
+    "sessionid", "tripid", "tenantid", "organizationid", "userid",
+    "carid", "vehicleid", "widgetid", "chargerid", "stationid",
+    "chargingstationid", "chargingpileid", "orderid", "recordid",
+    "requestid", "transactionid", "paymentid", "operatorid", "groupid",
+    "orgid", "pointid", "portid", "connectorid", "evseid",
+    "plate", "licenseplate", "licenceplate", "vehicleplate", "carplate",
+    "registrationnumber", "registrationplate",
+})
+
+
+def _is_sensitive_key(key: str) -> bool:
+    compact = re.sub(r"[^a-z0-9]", "", str(key).casefold())
+    return bool(_SENSITIVE_KEY.search(str(key))) or compact in _SENSITIVE_COMPACT_KEYS
 
 
 def _redact_api_value(value):
@@ -18,7 +34,7 @@ def _redact_api_value(value):
     if isinstance(value, dict):
         result = {}
         for key, item in value.items():
-            if _SENSITIVE_KEY.search(str(key)):
+            if _is_sensitive_key(str(key)):
                 result[str(key)] = "[REDACTED]"
             else:
                 result[str(key)] = _redact_api_value(item)
@@ -81,6 +97,19 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
             car_id = client.default_car_id()
             telemetry = client.get_telemetry(car_id=car_id)
             sensors = dict(getattr(telemetry, "sensors", None) or {})
+            # Charge-session telemetry is a separate EVACONNECT endpoint.
+            # Its failure must not interrupt the primary vehicle telemetry loop.
+            try:
+                charge_session = client.get_charge_session()
+                charge_payload = (
+                    {"state": "inactive"} if charge_session is None
+                    else {"state": "active", "data": getattr(charge_session, "api_raw", {})}
+                )
+            except Exception as charge_exc:
+                charge_payload = {
+                    "state": "unavailable",
+                    "error_type": type(charge_exc).__name__,
+                }
             soc = sensors.get("batteryPercentage")
             odometer = sensors.get("odometer")
             stock_range = sensors.get("remainsBatteryMileage")
@@ -97,10 +126,13 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
                 # Preserve the complete decoded telemetry response, including
                 # top-level fields and every sensor. Redact account/vehicle identifiers.
                 "sensors_json": json.dumps(
-                    _redact_api_value(
-                        getattr(telemetry, "api_raw", None)
-                        or {"sensors": getattr(telemetry, "sensors_raw", None) or sensors}
-                    ),
+                    _redact_api_value({
+                        **(
+                            getattr(telemetry, "api_raw", None)
+                            or {"sensors": getattr(telemetry, "sensors_raw", None) or sensors}
+                        ),
+                        "charge_session": charge_payload,
+                    }),
                     ensure_ascii=False,
                     separators=(",", ":"),
                     default=str,

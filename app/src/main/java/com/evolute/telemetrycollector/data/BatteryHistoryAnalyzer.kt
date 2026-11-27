@@ -24,23 +24,24 @@ internal object BatteryHistoryAnalyzer {
 
     fun analyze(history: List<TelemetrySnapshot>): Report {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
-        val sensorSocExists = history.any { sample ->
-            extract(sample.sensorsJson).keys.any { key ->
-                key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
-                    it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
-                }
-            }
-        }
+        // Pick the sensor's SOC field name once so snapshots without a nested SOC
+        // value can fill the same series from the first-class snapshot column.
+        val sensorSocPath = history.asSequence()
+            .map { extract(it.sensorsJson).keys.firstOrNull { key -> isSocPath(key) } }
+            .firstOrNull { it != null }
+        val fallbackSocPath = sensorSocPath ?: "SOC"
         history.forEach { sample ->
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
             val sensorValues = extract(sample.sensorsJson)
             sensorValues.forEach { (path, value) ->
                 points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
-            // SOC is stored as a first-class snapshot field, even when EVACONNECT
-            // does not expose it again inside the nested sensor JSON.
-            if (!sensorSocExists && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
-                points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
+            // SOC is stored as a first-class snapshot field. Fall back per sample,
+            // not per entire history, when the nested sensor value is absent.
+            val hasSensorSoc = sensorValues.keys.any { isSocPath(it) }
+            if (!hasSensorSoc && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
+                points.getOrPut(fallbackSocPath) { mutableListOf() }
+                    .add(MetricPoint(at, sample.soc, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
         }
         val alerts = mutableListOf<String>()
@@ -69,6 +70,11 @@ internal object BatteryHistoryAnalyzer {
         return Report(metrics, alerts.take(8))
     }
 
+    private fun isSocPath(path: String): Boolean =
+        path.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
+            it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
+        }
+
     /** Indexes of short-lived outliers; never bridge a telemetry gap over 3 minutes. */
     private fun isolatedSpikeIndexes(values: List<MetricPoint>): Set<Int> {
         val rejected = linkedSetOf<Int>()
@@ -76,8 +82,8 @@ internal object BatteryHistoryAnalyzer {
             val before = values[i - 1]
             val spike = values[i]
             val after = values[i + 1]
-            if (Duration.between(before.at, spike.at).toMinutes() > 3 ||
-                Duration.between(spike.at, after.at).toMinutes() > 3) continue
+            if (Duration.between(before.at, spike.at) > Duration.ofMinutes(3) ||
+                Duration.between(spike.at, after.at) > Duration.ofMinutes(3)) continue
             val baseline = before.value
             val deviates = abs(spike.value - baseline) >= max(abs(baseline) * 0.20, 1.0)
             val returns = abs(after.value - baseline) <= max(abs(baseline) * 0.05, 0.5)
@@ -86,12 +92,16 @@ internal object BatteryHistoryAnalyzer {
         return rejected
     }
 
+    /** Exact 10-minute threshold shared by text summaries and chart labels. */
+    fun hasTelemetryGap(points: List<MetricPoint>): Boolean =
+        points.zipWithNext().any {
+            Duration.between(it.first.at, it.second.at) > Duration.ofMinutes(10)
+        }
+
     fun render(report: Report): String {
         if (report.metrics.isEmpty()) return "История появится после получения числовых датчиков напряжения, тока, температуры или SOH."
         val lines = report.metrics.take(12).map { m ->
-            val hasGap = m.points.zipWithNext().any {
-                Duration.between(it.first.at, it.second.at).toMinutes() > 10
-            }
+            val hasGap = hasTelemetryGap(m.points)
             val delta = m.points.last().value - m.points.first().value
             val change = if (m.points.size >= 2 && !hasGap) " · изменение за период " + signed(delta)
                 else if (hasGap) " · есть пропуск данных" else ""

@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import org.json.JSONObject
 
 /**
  * Escapes one CSV field according to RFC 4180.
@@ -44,15 +45,41 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         if (oldVersion < 2) db.execSQL("ALTER TABLE snapshots ADD COLUMN sensors_json TEXT NOT NULL DEFAULT '{}'")
     }
 
-    fun insert(t: ApiClient.Telemetry) {
-        val v = ContentValues().apply {
-            put("captured_at", java.time.Instant.now().toString())
-            put("api_updated_at", t.updatedAt)
-            put("soc", t.soc); put("odometer", t.odometer); put("stock_range", t.stockRange)
-            put("online", if (t.online) 1 else 0); put("ready", if (t.ready) 1 else 0)
-            put("sensors_json", t.sensorsJson)
+    /**
+     * Inserts only snapshots newer than the latest server-timestamped record.
+     * The transaction makes comparison + insert atomic if polling is ever invoked concurrently.
+     */
+    internal fun insert(t: ApiClient.Telemetry): TelemetryFreshness {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val latestUpdatedAt = db.rawQuery(
+                "SELECT api_updated_at FROM snapshots WHERE api_updated_at IS NOT NULL ORDER BY id DESC",
+                null
+            ).use { c ->
+                var latest: String? = null
+                while (c.moveToNext() && latest == null) {
+                    val candidate = c.getString(0)
+                    if (TelemetryFreshnessPolicy.isValidTimestamp(candidate)) latest = candidate
+                }
+                latest
+            }
+            val freshness = TelemetryFreshnessPolicy.classify(t.updatedAt, latestUpdatedAt)
+            if (freshness != TelemetryFreshness.ACCEPT) return freshness
+
+            val v = ContentValues().apply {
+                put("captured_at", java.time.Instant.now().toString())
+                put("api_updated_at", t.updatedAt)
+                put("soc", t.soc); put("odometer", t.odometer); put("stock_range", t.stockRange)
+                put("online", if (t.online) 1 else 0); put("ready", if (t.ready) 1 else 0)
+                put("sensors_json", t.sensorsJson)
+            }
+            db.insertOrThrow("snapshots", null, v)
+            db.setTransactionSuccessful()
+            return TelemetryFreshness.ACCEPT
+        } finally {
+            db.endTransaction()
         }
-        writableDatabase.insertOrThrow("snapshots", null, v)
     }
 
     /** Estimated range from complete 1-km SOC intervals, averaging the latest eight valid intervals. */
@@ -108,7 +135,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         val sql = if (capturedAfter == null) {
             "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC"
         } else {
-            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots WHERE captured_at >= ? ORDER BY id ASC"
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots WHERE julianday(captured_at) >= julianday(?) ORDER BY id ASC"
         }
         val args = if (capturedAfter == null) null else arrayOf(capturedAfter)
         return readableDatabase.rawQuery(sql, args).use { c ->
@@ -138,13 +165,13 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         }
 
     /**
-     * Lightweight complete history for trip and charging-session reconstruction.
-     * These analyzers need only timestamps, SOC and odometer; loading sensor JSON
-     * for every historical row wastes memory and needlessly limits the history window.
+     * Lightweight history for trip and charging-session reconstruction.
+     * Retain only the compact charge-session state needed by TripHistoryAnalyzer;
+     * copying the full sensor payload for every historical row would waste memory.
      */
     fun analyticsHistorySnapshots(): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
-            "SELECT captured_at,soc,odometer FROM snapshots ORDER BY id ASC", null
+            "SELECT captured_at,soc,odometer,sensors_json FROM snapshots ORDER BY id ASC", null
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(
@@ -155,11 +182,23 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
                     stockRange = null,
                     online = false,
                     ready = false,
-                    sensorsJson = "{}"
+                    sensorsJson = compactChargeSessionJson(c.getString(3))
                 )
             )
             rows
         }
+
+    private fun compactChargeSessionJson(raw: String): String = try {
+        val state = JSONObject(raw).optJSONObject("charge_session")?.optString("state")
+        if (state == "active" || state == "inactive" || state == "unavailable") {
+            JSONObject().put(
+                "charge_session",
+                JSONObject().put("state", state)
+            ).toString()
+        } else "{}"
+    } catch (_: Exception) {
+        "{}"
+    }
 
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"
