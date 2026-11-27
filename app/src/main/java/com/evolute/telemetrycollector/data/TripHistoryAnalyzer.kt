@@ -28,13 +28,16 @@ internal object TripHistoryAnalyzer {
     private const val STOP_GAP_MILLIS = 15 * 60 * 1000L
     private const val TELEMETRY_GAP_MILLIS = 3 * 60 * 1000L
     private const val CHARGE_RESUME_WINDOW_MILLIS = 10 * 60 * 1000L
+    // Keep a confirmed charge session through brief endpoint failures, but do not
+    // let an unavailable EVACONNECT status hold a trip open forever.
+    private const val CHARGE_STATE_UNAVAILABLE_TIMEOUT_MILLIS = STOP_GAP_MILLIS
 
     private fun chargeSessionState(snapshot: TelemetrySnapshot): String? {
         // Parse the charge_session object first, then its state. Keeping the
         // match scoped avoids accidentally reading an unrelated "state" field.
         val sessionBody = Regex("\\\"charge_session\\\"\\s*:\\s*\\{([^}]*)\\}")
             .find(snapshot.sensorsJson)?.groupValues?.getOrNull(1) ?: return null
-        return Regex("\\\"state\\\"\\s*:\\s*\\\"(active|inactive)\\\"")
+        return Regex("\\\"state\\\"\\s*:\\s*\\\"(active|inactive|unavailable)\\\"")
             .find(sessionBody)?.groupValues?.getOrNull(1)
     }
 
@@ -50,6 +53,7 @@ internal object TripHistoryAnalyzer {
         var lastMovementAt = 0L
         var charging = false
         var chargeEndedAt: Long? = null
+        var chargeUnavailableSince: Long? = null
 
         fun finishTrip() {
             val samples = active ?: return
@@ -85,15 +89,34 @@ internal object TripHistoryAnalyzer {
 
             val gapMillis = currentAt - previousAt
             val chargeState = chargeSessionState(current)
-            if (chargeState == "active" && active != null &&
-                (charging || currentAt - lastMovementAt <= STOP_GAP_MILLIS)) {
-                // Charging started within the normal 15-minute stop grace period:
-                // keep the current trip open while the vehicle is plugged in.
-                charging = true
-                chargeEndedAt = null
-            } else if (charging && chargeState == "inactive") {
-                charging = false
-                chargeEndedAt = currentAt
+            if (chargeState == "active") {
+                chargeUnavailableSince = null
+                if (active != null &&
+                    (charging || currentAt - lastMovementAt <= STOP_GAP_MILLIS)) {
+                    // Charging started within the normal 15-minute stop grace period:
+                    // keep the current trip open while the vehicle is plugged in.
+                    charging = true
+                    chargeEndedAt = null
+                }
+            } else if (chargeState == "inactive") {
+                chargeUnavailableSince = null
+                if (charging) {
+                    charging = false
+                    chargeEndedAt = currentAt
+                }
+            } else if (chargeState == "unavailable" && charging) {
+                // A short endpoint outage must not end a confirmed charge session.
+                // If the status remains unavailable for 15 minutes, stop treating
+                // the session as active and close the trip from the last known
+                // charging sample rather than holding it open indefinitely.
+                val unavailableSince = chargeUnavailableSince ?: currentAt.also {
+                    chargeUnavailableSince = it
+                }
+                if (currentAt - unavailableSince > CHARGE_STATE_UNAVAILABLE_TIMEOUT_MILLIS) {
+                    charging = false
+                    chargeEndedAt = unavailableSince
+                    chargeUnavailableSince = null
+                }
             }
 
             // Once charging ends, allow up to 10 minutes for the next drive to
