@@ -331,10 +331,7 @@ class MainActivity : Activity() {
         batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ", 11f, white, true))
         addGap(batteryHistoryCard, 6)
         batteryHistoryCard.addView(text("Период графиков датчиков · данные сохраняются локально и не удаляются при переключении периода", 9f, muted))
-        addGap(batteryHistoryCard, 8)
         batteryHistoryPeriodControls = row().apply { gravity = Gravity.CENTER_VERTICAL }
-        batteryHistoryCard.addView(batteryHistoryPeriodControls)
-        addGap(batteryHistoryCard, 8)
         batteryHistoryValue = text("Ожидание истории батареи", 10f, white)
         batteryHistoryValue.setLineSpacing(dp(2).toFloat(), 1f)
         batteryHistoryCard.addView(batteryHistoryValue)
@@ -798,7 +795,18 @@ class MainActivity : Activity() {
         prioritized.take(10).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
-            addGap(batteryHistoryCharts, 3)
+            val isVoltageMetric = metric.path.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("[^a-zа-я0-9]"), "").let { key ->
+                    key.contains("12vbatteryvoltage") ||
+                        listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) }
+                }
+            if (isVoltageMetric) {
+                addGap(batteryHistoryCharts, 5)
+                batteryHistoryCharts.addView(batteryHistoryPeriodControls)
+                addGap(batteryHistoryCharts, 5)
+            } else {
+                addGap(batteryHistoryCharts, 3)
+            }
             val hasGap = metric.points.zipWithNext().any {
                 java.time.Duration.between(it.first.at, it.second.at).toMinutes() > 10
             }
