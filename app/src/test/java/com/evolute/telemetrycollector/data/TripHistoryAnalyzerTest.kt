@@ -69,6 +69,26 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
     }
 
+    @Test fun exactFifteenMinuteTelemetryGapDoesNotExpireActiveChargeState() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            // Exactly 15 minutes: retain the known active session.
+            chargeSample(25, 94.0, 1001.0, "active"),
+            chargeSample(26, 94.0, 1001.0, "inactive"),
+            sample(30, 93.5, 1001.5),
+            sample(31, 93.0, 1002.0),
+            sample(46, 93.0, 1002.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(2.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
+    }
+
     @Test fun longTelemetryOutageDoesNotKeepStaleChargingSessionOpen() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
