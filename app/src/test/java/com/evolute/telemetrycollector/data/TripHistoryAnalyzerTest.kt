@@ -42,7 +42,6 @@ class TripHistoryAnalyzerTest {
             sample(51, 93.0, 1002.0)
         ))
 
-        println("CHARGE_RESUME_DIAGNOSTIC trips=$trips")
         assertEquals("Unexpected trips after charge/resume: $trips", 1, trips.size)
         assertEquals(2.0, trips[0].distanceKm, 0.001)
         assertEquals("2026-11-26T10:00:00Z", trips[0].startedAt)
@@ -63,7 +62,6 @@ class TripHistoryAnalyzerTest {
             sample(43, 94.0, 1001.0)
         ))
 
-        println("CHARGE_TIMEOUT_DIAGNOSTIC trips=$trips")
         assertEquals(1, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
         assertEquals("Unexpected trip end after charge timeout: $trips", "2026-11-26T10:25:00Z", trips[0].endedAt)
