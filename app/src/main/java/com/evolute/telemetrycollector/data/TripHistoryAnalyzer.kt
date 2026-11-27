@@ -94,9 +94,18 @@ internal object TripHistoryAnalyzer {
                 continue
             }
 
+            val delta = current.odometer - previous.odometer
+            // A meaningful backwards odometer change is a counter reset/correction,
+            // not negative distance. Close the prior segment and use the lower
+            // reading as a fresh baseline for any subsequent movement.
+            if (delta < -MOVEMENT_EPSILON_KM) {
+                finishTrip()
+                lastMovementAt = 0L
+                continue
+            }
+
             if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
 
-            val delta = current.odometer - previous.odometer
             if (delta > MOVEMENT_EPSILON_KM) {
                 if (active == null) active = mutableListOf(previous, current)
                 else active?.add(current)
