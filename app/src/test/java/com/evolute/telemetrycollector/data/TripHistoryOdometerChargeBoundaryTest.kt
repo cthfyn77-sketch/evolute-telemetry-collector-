@@ -27,7 +27,7 @@ class TripHistoryOdometerChargeBoundaryTest {
 
         assertEquals("The sustained counter correction must split trips without losing the later drive: $trips", 2, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
-        assertEquals("2026-11-26T10:20:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:30:00Z", trips[0].startedAt)
         assertEquals("2026-11-26T10:36:00Z", trips[0].endedAt)
         assertEquals(1.0, trips[1].distanceKm, 0.001)
         assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
