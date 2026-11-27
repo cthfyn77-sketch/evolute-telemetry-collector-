@@ -4,7 +4,7 @@ import java.time.Duration
 import java.time.Instant
 
 /**
- * Removes only a single short-lived odometer outlier from derived calculations.
+ * Corrects a single short-lived odometer outlier in derived calculations.
  * Original snapshots remain unchanged in the database and CSV export.
  */
 internal object OdometerSanitizer {
