@@ -185,7 +185,7 @@ internal object TripHistoryAnalyzer {
                     // Movement resumed within the post-charge grace period.
                     chargeEndedAt = null
                 }
-            } else if (active != null && (charging || wasCharging)) {
+            } else if (active != null && (charging || (wasCharging && chargeState == "unavailable"))) {
                 // Include every sample observed during a confirmed charge session,
                 // including the final inactive sample and brief unavailable periods.
                 // Otherwise a temporary SOC rise could be missed and consumption
