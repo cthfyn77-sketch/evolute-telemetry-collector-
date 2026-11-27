@@ -130,4 +130,24 @@ class SnapshotDbTest {
         assertEquals(1L, db.count())
         assertEquals(64.0, db.latestSnapshot()!!.soc, 0.001)
     }
+
+    @Test fun batteryHistoryCutoffUsesChronologicalTimeNotTimestampTextOrder() {
+        fun insertAt(timestamp: String, soc: Double) {
+            db.writableDatabase.execSQL(
+                "INSERT INTO snapshots(captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json) VALUES(?,NULL,?,?,NULL,1,1,'{}')",
+                arrayOf<Any?>(timestamp, soc, 1000.0)
+            )
+        }
+
+        insertAt("2026-11-27T11:59:59.9Z", 69.0)
+        insertAt("2026-11-27T12:00:00Z", 70.0)
+        insertAt("2026-11-27T12:00:00.1Z", 71.0)
+
+        val history = db.batteryHistorySnapshots("2026-11-27T12:00:00Z")
+
+        assertEquals(2, history.size)
+        assertEquals(70.0, history[0].soc, 0.001)
+        assertEquals(71.0, history[1].soc, 0.001)
+    }
+
 }
