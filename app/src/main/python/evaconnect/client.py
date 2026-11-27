@@ -314,7 +314,11 @@ class EvoluteClient:
         data = self._json(response)
         if data is None or data == {}:
             return None
-        return ChargeSession.model_validate(data)
+        session = ChargeSession.model_validate(data)
+        # Preserve the exact decoded API payload; the Android bridge redacts
+        # credentials and account/vehicle identifiers before local persistence.
+        session.api_raw = data
+        return session
 
     # --- trips -------------------------------------------------------------
 
