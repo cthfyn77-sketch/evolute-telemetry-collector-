@@ -63,7 +63,7 @@ class OdometerSanitizerTest {
         )
         val clean = OdometerSanitizer.sanitize(history)
         assertEquals(listOf(1000.0, 1000.0), clean.map { it.odometer })
-        assertEquals(listOf(0, 60), clean.map {
+        assertEquals(listOf(0L, 60L), clean.map {
             java.time.Instant.parse(it.capturedAt).epochSecond -
                 java.time.Instant.parse("2026-11-26T10:00:00Z").epochSecond
         })
