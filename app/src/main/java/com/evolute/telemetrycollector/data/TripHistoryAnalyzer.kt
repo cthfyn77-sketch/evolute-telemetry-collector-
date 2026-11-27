@@ -27,6 +27,11 @@ internal object TripHistoryAnalyzer {
     private const val MIN_TRIP_DISTANCE_KM = 0.5
     private const val STOP_GAP_MILLIS = 15 * 60 * 1000L
     private const val TELEMETRY_GAP_MILLIS = 3 * 60 * 1000L
+    private const val CHARGE_RESUME_WINDOW_MILLIS = 10 * 60 * 1000L
+
+    private fun chargeSessionState(snapshot: TelemetrySnapshot): String? =
+        Regex("\\\"charge_session\\\"\\s*:\\s*\\{[^}]*\\\"state\\\"\\s*:\\s*\\\"(active|inactive)\\\"")
+            .find(snapshot.sensorsJson)?.groupValues?.getOrNull(1)
 
     fun analyze(history: List<TelemetrySnapshot>): List<TripSummary> {
         if (history.size < 2) return emptyList()
@@ -38,6 +43,8 @@ internal object TripHistoryAnalyzer {
         val trips = mutableListOf<TripSummary>()
         var active: MutableList<TelemetrySnapshot>? = null
         var lastMovementAt = 0L
+        var charging = false
+        var chargeEndedAt: Long? = null
 
         fun finishTrip() {
             val samples = active ?: return
@@ -72,17 +79,39 @@ internal object TripHistoryAnalyzer {
             val (currentAt, current) = ordered[index]
 
             val gapMillis = currentAt - previousAt
+            val chargeState = chargeSessionState(current)
+            if (chargeState == "active" && active != null &&
+                currentAt - lastMovementAt <= STOP_GAP_MILLIS) {
+                // Charging started within the normal 15-minute stop grace period:
+                // keep the current trip open while the vehicle is plugged in.
+                charging = true
+                chargeEndedAt = null
+            } else if (charging && chargeState == "inactive") {
+                charging = false
+                chargeEndedAt = currentAt
+            }
 
-            // A gap of at least 15 minutes is treated as a completed stationary stop.
-            // A shorter but unusually long gap (over 3 minutes) may be an outage:
-            // discard the incomplete segment if movement occurred while offline, or
-            // if the recovered sample is unchanged in both odometer and SOC.
-            if (gapMillis >= STOP_GAP_MILLIS) {
+            // Once charging ends, allow up to 10 minutes for the next drive to
+            // begin. If it does not, close the previous trip before any later drive.
+            val resumeDeadline = chargeEndedAt
+            if (!charging && resumeDeadline != null &&
+                currentAt - resumeDeadline > CHARGE_RESUME_WINDOW_MILLIS) {
+                finishTrip()
+                lastMovementAt = 0L
+                chargeEndedAt = null
+            }
+
+            // A long stationary gap normally closes a trip, except while a
+            // confirmed charge session is active or inside its post-charge grace.
+            if (gapMillis >= STOP_GAP_MILLIS && !charging && chargeEndedAt == null) {
                 finishTrip()
                 lastMovementAt = 0L
                 continue
             }
-            if (gapMillis > TELEMETRY_GAP_MILLIS) {
+            // A shorter but unusually long gap (over 3 minutes) may be an outage:
+            // discard the incomplete segment if movement occurred while offline, or
+            // if the recovered sample is unchanged in both odometer and SOC.
+            if (gapMillis > TELEMETRY_GAP_MILLIS && !charging && chargeEndedAt == null) {
                 val recoveredMovement = current.odometer - previous.odometer
                 val recoveredSocChange = kotlin.math.abs(current.soc - previous.soc)
                 if (recoveredMovement > MOVEMENT_EPSILON_KM ||
@@ -111,11 +140,22 @@ internal object TripHistoryAnalyzer {
                 if (active == null) active = mutableListOf(previous, current)
                 else active?.add(current)
                 lastMovementAt = currentAt
-            } else if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS) {
+                if (chargeEndedAt != null &&
+                    currentAt - chargeEndedAt!! <= CHARGE_RESUME_WINDOW_MILLIS) {
+                    // Movement resumed within the post-charge grace period.
+                    chargeEndedAt = null
+                }
+            } else if (active != null && charging) {
+                // Include charging SOC samples so charge-related SOC increases
+                // invalidate trip consumption rather than appearing as low usage.
+                active?.add(current)
+            } else if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
+                chargeEndedAt == null) {
                 finishTrip()
             }
         }
-        if (active != null && ordered.last().first - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
+        if (active != null && !charging && chargeEndedAt == null &&
+            ordered.last().first - lastMovementAt >= STOP_GAP_MILLIS) finishTrip()
         return trips.sortedByDescending {
             try { Instant.parse(it.startedAt) } catch (_: Exception) { Instant.EPOCH }
         }
