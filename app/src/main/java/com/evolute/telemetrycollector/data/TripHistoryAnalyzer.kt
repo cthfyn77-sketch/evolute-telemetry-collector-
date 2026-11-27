@@ -81,7 +81,7 @@ internal object TripHistoryAnalyzer {
             val gapMillis = currentAt - previousAt
             val chargeState = chargeSessionState(current)
             if (chargeState == "active" && active != null &&
-                currentAt - lastMovementAt <= STOP_GAP_MILLIS) {
+                (charging || currentAt - lastMovementAt <= STOP_GAP_MILLIS)) {
                 // Charging started within the normal 15-minute stop grace period:
                 // keep the current trip open while the vehicle is plugged in.
                 charging = true
