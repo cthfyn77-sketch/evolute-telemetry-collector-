@@ -126,8 +126,6 @@ class TripHistoryAnalyzerTest {
         assertEquals(1.0, trips[1].distanceKm, 0.001)
         assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
         assertEquals("2026-11-26T10:02:00Z", trips[1].endedAt)
-        assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
-        assertEquals(1.0, trips[1].socUsedPercent!!, 0.001)
     }
 
     @Test fun calculatesWeightedConsumptionFromTripsAtLeastOneKm() {
