@@ -52,8 +52,15 @@ internal object TripHistoryAnalyzer {
             val duration = Duration.between(startTime, endTime).seconds.coerceAtLeast(0)
             // SOC endpoints must each be valid; a plausible difference between two
             // out-of-range readings is not a trustworthy consumption measurement.
-            val socUsed = if (start.soc.isFinite() && end.soc.isFinite() &&
-                start.soc in 0.0..100.0 && end.soc in 0.0..100.0) {
+            // A trip's endpoint delta is not reliable if any intermediate SOC
+            // sample is invalid or shows a meaningful rise (e.g. charging while
+            // parked, a sensor reset, or inconsistent telemetry). Keep the trip,
+            // but omit its SOC consumption from statistics.
+            val socSequenceReliable = samples.all { it.soc.isFinite() && it.soc in 0.0..100.0 } &&
+                samples.zipWithNext().none { (before, after) ->
+                    after.soc - before.soc >= 0.2
+                }
+            val socUsed = if (socSequenceReliable) {
                 (start.soc - end.soc).takeIf { it.isFinite() && it > 0.0 && it <= 100.0 }
             } else null
             trips.add(TripSummary(start.capturedAt, end.capturedAt, distance, duration, socUsed))
