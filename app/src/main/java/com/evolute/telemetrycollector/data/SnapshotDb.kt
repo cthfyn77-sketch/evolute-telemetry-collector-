@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import org.json.JSONObject
 
 /**
  * Escapes one CSV field according to RFC 4180.
@@ -164,13 +165,13 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         }
 
     /**
-     * Lightweight complete history for trip and charging-session reconstruction.
-     * These analyzers need only timestamps, SOC and odometer; loading sensor JSON
-     * for every historical row wastes memory and needlessly limits the history window.
+     * Lightweight history for trip and charging-session reconstruction.
+     * Retain only the compact charge-session state needed by TripHistoryAnalyzer;
+     * copying the full sensor payload for every historical row would waste memory.
      */
     fun analyticsHistorySnapshots(): List<TelemetrySnapshot> =
         readableDatabase.rawQuery(
-            "SELECT captured_at,soc,odometer FROM snapshots ORDER BY id ASC", null
+            "SELECT captured_at,soc,odometer,sensors_json FROM snapshots ORDER BY id ASC", null
         ).use { c ->
             val rows = mutableListOf<TelemetrySnapshot>()
             while (c.moveToNext()) rows.add(
@@ -181,11 +182,23 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
                     stockRange = null,
                     online = false,
                     ready = false,
-                    sensorsJson = "{}"
+                    sensorsJson = compactChargeSessionJson(c.getString(3))
                 )
             )
             rows
         }
+
+    private fun compactChargeSessionJson(raw: String): String = try {
+        val state = JSONObject(raw).optJSONObject("charge_session")?.optString("state")
+        if (state == "active" || state == "inactive" || state == "unavailable") {
+            JSONObject().put(
+                "charge_session",
+                JSONObject().put("state", state)
+            ).toString()
+        } else "{}"
+    } catch (_: Exception) {
+        "{}"
+    }
 
     fun latest(): String {
         val item = latestSnapshot() ?: return "Пока нет записей"

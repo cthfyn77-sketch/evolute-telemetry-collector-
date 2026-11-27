@@ -10,7 +10,7 @@ class OdometerSanitizerTest {
             soc, odo, null, true, true, "{}"
         )
 
-    @Test fun removesOneShortLivedOdometerJump() {
+    @Test fun correctsOneShortLivedOdometerJump() {
         val history = listOf(
             sample(0, 1000.0),
             sample(30, 1012.0),
@@ -18,7 +18,7 @@ class OdometerSanitizerTest {
             sample(90, 1000.5)
         )
         val clean = OdometerSanitizer.sanitize(history)
-        assertEquals(listOf(1000.0, 1000.0, 1000.5), clean.map { it.odometer })
+        assertEquals(listOf(1000.0, 1000.0, 1000.0, 1000.5), clean.map { it.odometer })
     }
 
     @Test fun keepsSustainedOdometerChange() {
@@ -33,5 +33,64 @@ class OdometerSanitizerTest {
             TelemetrySnapshot("2026-11-26T10:10:30Z", 70.0, 1000.0, null, true, true, "{}")
         )
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
+    }
+
+    @Test fun correctsShortLivedBackwardsOdometerDrop() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 988.0),
+            sample(60, 1000.0),
+            sample(90, 1000.5)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(listOf(1000.0, 1000.0, 1000.0, 1000.5), clean.map { it.odometer })
+    }
+
+    @Test fun preservesOdometerCorrectionThatDoesNotReturnToBaseline() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 1012.0),
+            sample(60, 1011.0)
+        )
+        assertEquals(3, OdometerSanitizer.sanitize(history).size)
+    }
+
+    @Test fun sortsChronologicalSamplesBeforeCheckingSpike() {
+        val history = listOf(
+            sample(60, 1000.0),
+            sample(0, 1000.0),
+            sample(30, 1012.0)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(listOf(1000.0, 1000.0, 1000.0), clean.map { it.odometer })
+        assertEquals(listOf(0L, 30L, 60L), clean.map {
+            java.time.Instant.parse(it.capturedAt).epochSecond -
+                java.time.Instant.parse("2026-11-26T10:00:00Z").epochSecond
+        })
+    }
+
+    @Test fun keepsJumpWhenEitherNeighborGapExceedsThreeMinutes() {
+        val history = listOf(
+            sample(0, 1000.0),
+            sample(30, 1012.0),
+            sample(211, 1000.0)
+        )
+        assertEquals(3, OdometerSanitizer.sanitize(history).size)
+    }
+
+    @Test fun preservesSocAndChargeStateWhenCorrectingOdometerSpike() {
+        val history = listOf(
+            sample(0, 1000.0, 80.0),
+            TelemetrySnapshot(
+                "2026-11-26T10:00:30Z", 85.0, 1012.0, null, true, true,
+                """{"charge_session":{"state":"active"}}"""
+            ),
+            sample(60, 1000.0, 80.0)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(3, clean.size)
+        assertEquals(1000.0, clean[1].odometer, 0.001)
+        assertEquals(85.0, clean[1].soc, 0.001)
+        assertEquals("""{"charge_session":{"state":"active"}}""", clean[1].sensorsJson)
     }
 }
