@@ -881,7 +881,11 @@ class MainActivity : Activity() {
             .withZone(java.time.ZoneId.systemDefault())
         tripHistoryValue.text = trips.joinToString("\n\n") { trip ->
             val date = formatter.format(java.time.Instant.parse(trip.startedAt))
-            val durationMinutes = (trip.durationSeconds / 60).coerceAtLeast(1)
+            val durationLabel = if (trip.durationSeconds < 60L) {
+                "меньше 1 мин"
+            } else {
+                "${trip.durationSeconds / 60} мин"
+            }
             val soc = trip.socUsedPercent?.let { " · SOC −${String.format(java.util.Locale.US, "%.1f", it)}%" } ?: " · SOC —"
             val rate = if (trip.distanceKm >= 1.0 && trip.socUsedPercent != null && trip.socUsedPercent > 0.0) {
                 " · ${String.format(java.util.Locale.US, "%.1f", trip.socUsedPercent / trip.distanceKm * 100.0)}%/100 км"
@@ -889,7 +893,7 @@ class MainActivity : Activity() {
             val speed = trip.averageSpeedKmh?.let {
                 " · ср. ${String.format(java.util.Locale.US, "%.1f", it)} км/ч"
             } ?: ""
-            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · ${durationMinutes} мин$soc$rate$speed"
+            "$date · ${String.format(java.util.Locale.US, "%.1f", trip.distanceKm)} км · $durationLabel$soc$rate$speed"
         }
     }
 
