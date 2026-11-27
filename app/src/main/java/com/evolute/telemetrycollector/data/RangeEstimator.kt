@@ -1,7 +1,7 @@
 package com.evolute.telemetrycollector.data
 
 /**
- * Measures SOC consumption in complete 5-km intervals and averages the latest
+ * Measures SOC consumption in complete 1-km intervals and averages the latest
  * eight valid intervals. Raw snapshots are never modified.
  */
 internal data class RangeMetrics(
@@ -10,7 +10,7 @@ internal data class RangeMetrics(
 )
 
 internal object RangeEstimator {
-    private const val STEP_KM = 5.0
+    private const val STEP_KM = 1.0
     private const val MAX_VALID_INTERVALS = 8
     private const val EPSILON = 0.0001
     private const val CHARGE_RISE_SOC = 0.2
@@ -55,9 +55,9 @@ internal object RangeEstimator {
             val current = ordered[index]
             val distance = current.odometer - previous.odometer
 
-            // Do not count distance or SOC consumption across a telemetry outage.
-            // Keep the last valid rolling window so the estimate remains available
-            // while the vehicle is offline; restart only the unfinished interval.
+            // Keep the last valid rolling window during a telemetry outage.
+            // Restart the unfinished interval at the first restored sample so
+            // missing distance and SOC consumption are never fabricated.
             if (isTelemetryGap(previous, current)) {
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
@@ -66,6 +66,8 @@ internal object RangeEstimator {
             }
 
             // A true odometer rollback starts a new independent distance epoch.
+            // Keeping the old checkpoint would otherwise stall sampling until
+            // the odometer climbed back to its former value.
             if (distance < -EPSILON) {
                 validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
@@ -74,7 +76,9 @@ internal object RangeEstimator {
                 continue
             }
 
-            // Charging or meaningful regeneration invalidates the rolling window.
+            // Any meaningful SOC rise resets the partial interval and rolling
+            // window. This covers stationary charging and moving regeneration;
+            // neither should be blended into a discharge-consumption interval.
             if (current.soc - previous.soc >= CHARGE_RISE_SOC) {
                 validIntervalConsumptions.clear()
                 baselineDistance = current.odometer
@@ -91,6 +95,8 @@ internal object RangeEstimator {
                     val fraction = ((nextCheckpoint - previous.odometer) / distance).coerceIn(0.0, 1.0)
                     val checkpointSoc = previous.soc + (current.soc - previous.soc) * fraction
                     val consumed = baselineSoc - checkpointSoc
+                    // Every boundary closes an interval, including invalid intervals.
+                    // This prevents a later interval from spanning an SOC rise or reset.
                     if (consumed > EPSILON && consumed.isFinite() &&
                         baselineSoc in 0.0..100.0 && checkpointSoc in 0.0..100.0) {
                         validIntervalConsumptions.add(consumed / STEP_KM)
@@ -105,7 +111,8 @@ internal object RangeEstimator {
             }
         }
 
-        // Wait for eight complete 5-km intervals before replacing the stock range.
+        // Keep the vehicle-reported range active until a full eight-interval
+        // sample window exists. A shorter average is too sensitive to one km.
         if (validIntervalConsumptions.size < MAX_VALID_INTERVALS) return null
         val averagePerKm = validIntervalConsumptions.average()
         val latestSoc = ordered.last().soc
