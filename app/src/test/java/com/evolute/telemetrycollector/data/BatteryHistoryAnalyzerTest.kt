@@ -99,4 +99,24 @@ class BatteryHistoryAnalyzerTest {
         val report = BatteryHistoryAnalyzer.analyze(history)
         assertTrue(BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
     }
+
+    @Test fun filtersSpikeWhenGapIsExactlyThreeMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:03:00Z", """{"batteryVoltage":500}"""),
+            sample("2026-11-26T00:03:30Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(report.alerts.any { it.contains("одиночный скачок") })
+        assertEquals(2, report.metrics.single { it.path == "batteryVoltage" }.samples)
+    }
+
+    @Test fun doesNotReportGapWhenIntervalIsExactlyTenMinutes() {
+        val history = listOf(
+            sample("2026-11-26T00:00:00Z", """{"batteryVoltage":350}"""),
+            sample("2026-11-26T00:10:00Z", """{"batteryVoltage":351}""")
+        )
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        assertTrue(!BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
+    }
 }
