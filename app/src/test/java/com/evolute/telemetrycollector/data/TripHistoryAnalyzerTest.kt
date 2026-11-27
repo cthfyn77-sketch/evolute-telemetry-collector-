@@ -78,6 +78,7 @@ class TripHistoryAnalyzerTest {
             chargeSample(12, 94.0, 1001.0, "active"),
             chargeSample(13, 94.0, 1001.0, "unavailable"),
             chargeSample(27, 94.0, 1001.0, "unavailable"),
+            chargeSample(28, 94.0, 1001.0, "unavailable"), // exactly 15 minutes: retain the session
             chargeSample(29, 94.0, 1001.0, "unavailable"),
             sample(30, 93.5, 1001.5),
             sample(31, 93.0, 1002.0),
@@ -90,7 +91,7 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:31:00Z", trips[0].endedAt)
         assertEquals(1.0, trips[1].distanceKm, 0.001)
         assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
-        assertEquals("2026-11-26T10:27:00Z", trips[1].endedAt)
+        assertEquals("2026-11-26T10:28:00Z", trips[1].endedAt)
     }
 
     @Test fun closesTripTenMinutesAfterChargeWhenMovementDoesNotResume() {
