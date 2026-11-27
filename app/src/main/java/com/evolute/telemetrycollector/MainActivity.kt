@@ -23,6 +23,7 @@ import java.io.IOException
 import com.evolute.telemetrycollector.data.KeystoreTokenStore
 import com.evolute.telemetrycollector.data.SnapshotDb
 import com.evolute.telemetrycollector.data.BatteryHistoryAnalyzer
+import com.evolute.telemetrycollector.data.BatteryConsumption
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -296,9 +297,9 @@ class MainActivity : Activity() {
         val consumptionCard = card()
         consumptionCard.addView(text("СРЕДНИЙ РАСХОД БАТАРЕИ", 10f, muted, true))
         addGap(consumptionCard, 5)
-        consumptionValue = text("— % / 100 км", 27f, white, true)
+        consumptionValue = text("— кВт·ч / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("Среднее по последним 8 километровым интервалам", 9f, muted))
+        consumptionCard.addView(text("Расчётная оценка по ёмкости 52 кВт·ч · последние 8 интервалов по 1 км", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -600,7 +601,7 @@ class MainActivity : Activity() {
             rangeValue.text = "— км"
             calculatedRangeValue.text = "— км"
             calculatedRangeHint.text = "Ожидание телеметрии"
-            consumptionValue.text = "— % / 100 км"
+            consumptionValue.text = "— кВт·ч / 100 км"
             odometerValue.text = "— км"
             connectionValue.text = "Ожидание телеметрии"
             connectionValue.setTextColor(muted)
@@ -650,8 +651,10 @@ class MainActivity : Activity() {
         batteryMetricsValue.text = if (latest != null) {
             BatteryTelemetryFormatter.format(db.recentSnapshots(20))
         } else "Ожидание данных батареи"
-        val averageConsumption = db.averageConsumptionPer100Km()
-        consumptionValue.text = averageConsumption?.let { String.format(java.util.Locale.US, "%.1f %% / 100 км", it) } ?: "— % / 100 км"
+        val averageConsumptionKwh = BatteryConsumption.estimateKwhPer100Km(db.averageConsumptionPer100Km())
+        consumptionValue.text = averageConsumptionKwh?.let {
+            String.format(java.util.Locale.US, "%.1f кВт·ч / 100 км", it)
+        } ?: "— кВт·ч / 100 км"
         val session = if (store.get() != null) "Авторизация: сохранена" else "Авторизация: не выполнена"
         val last = getSharedPreferences("collector_status", MODE_PRIVATE)
             .getString("last_status", "Опрос ещё не выполнялся") ?: "Опрос ещё не выполнялся"
