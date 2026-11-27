@@ -83,7 +83,8 @@ internal object RangeEstimator {
             false
         }
     }
-\n    fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
+
+    fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
         if (history.size < 2) return null
         val ordered = chronological(history)
         val first = ordered.first()
@@ -115,6 +116,12 @@ internal object RangeEstimator {
                 baselineDistance = current.odometer
                 baselineSoc = current.soc
                 nextCheckpoint = baselineDistance + STEP_KM
+                continue
+            }
+
+            // A short stationary dip/recovery with an explicit inactive charge state
+            // is treated as a sensor glitch; keep the rolling window and raw snapshots.
+            if (isRecoveredStationarySocOutlier(previous, current, baselineDistance, baselineSoc)) {
                 continue
             }
 
