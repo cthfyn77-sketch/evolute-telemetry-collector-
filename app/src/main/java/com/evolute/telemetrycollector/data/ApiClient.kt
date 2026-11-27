@@ -12,14 +12,16 @@ class ApiClient private constructor() {
         val userToken: String?, val widgetId: String?
     )
 
-    /** Reject impossible core values before they can contaminate local history or range estimates. */
-    internal fun validateTelemetry(t: Telemetry): String? {
-        if (!t.soc.isFinite() || t.soc !in 0.0..100.0) return "Некорректный SOC"
-        if (!t.odometer.isFinite() || t.odometer < 0.0) return "Некорректный одометр"
-        if (t.stockRange != null && (!t.stockRange.isFinite() || t.stockRange < 0.0)) {
-            return "Некорректный штатный запас хода"
+    companion object {
+        /** Reject impossible core values before they can contaminate local history or range estimates. */
+        internal fun validateTelemetry(t: Telemetry): String? {
+            if (!t.soc.isFinite() || t.soc !in 0.0..100.0) return "Некорректный SOC"
+            if (!t.odometer.isFinite() || t.odometer < 0.0) return "Некорректный одометр"
+            if (t.stockRange != null && (!t.stockRange.isFinite() || t.stockRange < 0.0)) {
+                return "Некорректный штатный запас хода"
+            }
+            return null
         }
-        return null
     }
 }
 
