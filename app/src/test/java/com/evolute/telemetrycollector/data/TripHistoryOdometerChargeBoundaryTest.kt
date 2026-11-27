@@ -59,4 +59,28 @@ class TripHistoryOdometerChargeBoundaryTest {
         assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
         assertEquals("2026-11-26T10:10:00Z", trips[1].endedAt)
     }
+
+    @Test fun odometerRollbackAfterChargeAndGapJustOverFifteenMinutesStartsFreshTrip() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample("2026-11-26T10:00:00Z", 90.0, 1000.0),
+            sample("2026-11-26T10:01:00Z", 89.5, 1000.5),
+            sample("2026-11-26T10:02:00Z", 89.0, 1001.0),
+            sample("2026-11-26T10:10:00Z", 89.0, 1001.0, "active"),
+            // 15 minutes and 1 millisecond: the previous active state is stale.
+            // The same recovered sample also contains an odometer reset.
+            sample("2026-11-26T10:25:00.001Z", 94.0, 990.0, "active"),
+            sample("2026-11-26T10:26:00Z", 93.5, 990.5),
+            sample("2026-11-26T10:27:00Z", 93.0, 991.0),
+            sample("2026-11-26T10:42:00Z", 93.0, 991.0)
+        ))
+
+        assertEquals("A stale charge state and odometer reset must not join trips: $trips", 2, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:25:00.001Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:27:00Z", trips[0].endedAt)
+        assertEquals(1.0, trips[1].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[1].startedAt)
+        assertEquals("2026-11-26T10:10:00Z", trips[1].endedAt)
+    }
+
 }
