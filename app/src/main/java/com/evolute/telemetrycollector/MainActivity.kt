@@ -302,7 +302,7 @@ class MainActivity : Activity() {
         addGap(consumptionCard, 5)
         consumptionValue = text("— кВт·ч / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("Расчётная оценка по ёмкости 52 кВт·ч · последние 8 интервалов по 5 км", 9f, muted))
+        consumptionCard.addView(text("Расчётная оценка по ёмкости 52 кВт·ч · последние 8 интервалов по 1 км", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -625,9 +625,9 @@ class MainActivity : Activity() {
             val calculatedRange = db.calculatedRangeKm()
             calculatedRangeValue.text = (calculatedRange ?: latest.stockRange)?.let { "${it.toInt()} км" } ?: "— км"
             calculatedRangeHint.text = if (calculatedRange != null) {
-                "По среднему расходу SOC · последние 8 интервалов по 5 км"
+                "По среднему расходу SOC · последние 8 интервалов по 1 км"
             } else {
-                "Штатный прогноз · ожидание 8 валидных интервалов по 5 км"
+                "Штатный прогноз · ожидание 8 валидных интервалов по 1 км"
             }
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
