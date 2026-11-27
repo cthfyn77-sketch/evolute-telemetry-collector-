@@ -296,6 +296,16 @@ class TripHistoryAnalyzerTest {
     }
 
 
+    @Test fun equalTimestampsCannotCreateACompletedTrip() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(0, 89.5, 1000.6), // odometer changes without elapsed time
+            sample(15, 89.5, 1000.6)
+        ))
+
+        assertTrue(trips.isEmpty())
+    }
+
     @Test fun averageSpeedIsUnavailableWhenTripHasNoElapsedTime() {
         val trip = TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:00:00Z", 5.0, 0, 2.0)
         assertNull(trip.averageSpeedKmh)
