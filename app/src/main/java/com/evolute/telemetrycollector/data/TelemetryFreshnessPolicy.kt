@@ -24,6 +24,8 @@ internal object TelemetryFreshnessPolicy {
         }
     }
 
+    fun isValidTimestamp(value: String?): Boolean = parse(value) != null
+
     private fun parse(value: String?): Instant? {
         if (value.isNullOrBlank()) return null
         return try {
