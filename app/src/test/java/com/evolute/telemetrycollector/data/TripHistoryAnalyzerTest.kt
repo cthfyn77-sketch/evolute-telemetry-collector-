@@ -138,6 +138,22 @@ class TripHistoryAnalyzerTest {
         assertEquals("2026-11-26T10:05:00Z", trips[0].endedAt)
     }
 
+    @Test fun telemetryGapJustOverThreeMinutesDiscardsIncompleteSegment() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            TelemetrySnapshot("2026-11-26T10:00:00Z", 90.0, 1000.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:01:00Z", 89.5, 1000.5, null, true, true, "{}"),
+            // 3 minutes and 1 millisecond after the previous sample: outage boundary.
+            TelemetrySnapshot("2026-11-26T10:04:00.001Z", 89.0, 1001.0, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:05:00.001Z", 88.5, 1001.5, null, true, true, "{}"),
+            TelemetrySnapshot("2026-11-26T10:20:00.001Z", 88.5, 1001.5, null, true, true, "{}")
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(0.5, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:04:00.001Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:05:00.001Z", trips[0].endedAt)
+    }
+
     @Test fun odometerRollbackClosesCurrentTripAndStartsFreshBaseline() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
