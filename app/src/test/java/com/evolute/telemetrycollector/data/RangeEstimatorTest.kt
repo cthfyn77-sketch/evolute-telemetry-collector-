@@ -5,10 +5,10 @@ import org.junit.Test
 import java.time.Instant
 
 class RangeEstimatorTest {
-    private fun snapshot(soc: Double, odo: Double, minute: Int) = TelemetrySnapshot(
+    private fun snapshot(soc: Double, odo: Double, minute: Int, sensorsJson: String = "{}") = TelemetrySnapshot(
         capturedAt = Instant.parse("2026-11-26T08:00:00Z").plusSeconds(minute * 60L).toString(),
         soc = soc, odometer = odo, stockRange = null,
-        online = true, ready = true, sensorsJson = "{}"
+        online = true, ready = true, sensorsJson = sensorsJson
     )
 
     @Test fun requiresEightCompleteValidIntervalsBeforeEstimating() {
