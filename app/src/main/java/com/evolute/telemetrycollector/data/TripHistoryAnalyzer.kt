@@ -186,10 +186,9 @@ internal object TripHistoryAnalyzer {
                     chargeEndedAt = null
                 }
             } else if (active != null && (charging || (wasCharging && chargeState == "unavailable"))) {
-                // Include every sample observed during a confirmed charge session,
-                // including the final inactive sample and brief unavailable periods.
-                // Otherwise a temporary SOC rise could be missed and consumption
-                // would be reported from an incomplete sequence.
+                // Include samples observed while a confirmed charge session is active,
+                // including brief unavailable periods. The final inactive marker
+                // sets the post-charge grace window but is not appended as a trip sample.
                 active?.add(current)
             } else if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
                 !charging && chargeEndedAt == null) {
