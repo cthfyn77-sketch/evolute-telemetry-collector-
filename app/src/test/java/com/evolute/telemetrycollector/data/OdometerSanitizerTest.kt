@@ -77,4 +77,20 @@ class OdometerSanitizerTest {
         )
         assertEquals(3, OdometerSanitizer.sanitize(history).size)
     }
+
+    @Test fun preservesSocAndChargeStateWhenCorrectingOdometerSpike() {
+        val history = listOf(
+            sample(0, 1000.0, 80.0),
+            TelemetrySnapshot(
+                "2026-11-26T10:00:30Z", 85.0, 1012.0, null, true, true,
+                """{"charge_session":{"state":"active"}}"""
+            ),
+            sample(60, 1000.0, 80.0)
+        )
+        val clean = OdometerSanitizer.sanitize(history)
+        assertEquals(3, clean.size)
+        assertEquals(1000.0, clean[1].odometer, 0.001)
+        assertEquals(85.0, clean[1].soc, 0.001)
+        assertEquals("""{"charge_session":{"state":"active"}}""", clean[1].sensorsJson)
+    }
 }
