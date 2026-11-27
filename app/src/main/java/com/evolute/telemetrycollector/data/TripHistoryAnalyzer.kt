@@ -140,7 +140,7 @@ internal object TripHistoryAnalyzer {
             }
 
             if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
-                chargeEndedAt == null) finishTrip()
+                !charging && chargeEndedAt == null) finishTrip()
 
             if (delta > MOVEMENT_EPSILON_KM) {
                 if (active == null) active = mutableListOf(previous, current)
@@ -156,7 +156,7 @@ internal object TripHistoryAnalyzer {
                 // invalidate trip consumption rather than appearing as low usage.
                 active?.add(current)
             } else if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
-                chargeEndedAt == null) {
+                !charging && chargeEndedAt == null) {
                 finishTrip()
             }
         }
