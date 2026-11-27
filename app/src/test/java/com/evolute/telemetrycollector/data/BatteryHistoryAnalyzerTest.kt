@@ -64,5 +64,17 @@ class BatteryHistoryAnalyzerTest {
         val report = BatteryHistoryAnalyzer.analyze(history)
         assertEquals(1, report.metrics.count { it.path == "soc" || it.path == "SOC" })
         assertEquals(2, report.metrics.single { it.path == "soc" }.samples)
+    } 
+    @Test fun fillsMissingNestedSocFromSnapshotWithoutDroppingOtherSocSamples() {
+        val history = listOf(
+            TelemetrySnapshot("2026-11-26T00:00:00Z", 80.0, 100.0, null, true, true, """{"soc":80,"batteryVoltage":350}"""),
+            TelemetrySnapshot("2026-11-26T00:00:30Z", 79.0, 100.1, null, true, true, """{"batteryVoltage":351}"""),
+            TelemetrySnapshot("2026-11-26T00:01:00Z", 78.0, 100.2, null, true, true, """{"soc":78,"batteryVoltage":352}""")
+        )
+        val soc = BatteryHistoryAnalyzer.analyze(history).metrics.single { it.path == "soc" }
+        assertEquals(3, soc.samples)
+        assertEquals(79.0, soc.points[1].value, 0.001)
+        assertEquals(78.0, soc.latest, 0.001)
     }
+
 }
