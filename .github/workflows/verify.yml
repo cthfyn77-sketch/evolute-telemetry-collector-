@@ -1,5 +1,7 @@
 name: JVM Verification (no APK)
 on:
+  push:
+    branches: [ fix/trip-history-reset-on-odometer-rollback ]
   pull_request:
     branches: [ main ]
     paths:
