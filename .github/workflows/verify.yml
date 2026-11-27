@@ -3,7 +3,7 @@ on:
   push:
     branches: [ fix/trip-history-reset-on-odometer-rollback ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'fix/**' ]
     paths:
       - "app/src/**"
       - "app/build.gradle.kts"
