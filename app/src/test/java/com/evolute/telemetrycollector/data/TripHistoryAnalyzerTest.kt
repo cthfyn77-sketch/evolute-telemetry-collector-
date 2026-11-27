@@ -148,8 +148,8 @@ class TripHistoryAnalyzerTest {
             sample(0, 90.0, 1000.0),
             sample(1, 90.0, 1012.0),
             sample(2, 90.0, 1000.0),
-            sample(3, 90.0, 1000.5),
-            sample(18, 90.0, 1000.5)
+            sample(3, 90.0, 1000.2),
+            sample(18, 90.0, 1000.2)
         ))
 
         assertTrue(trips.isEmpty())
