@@ -302,7 +302,7 @@ class MainActivity : Activity() {
         addGap(consumptionCard, 5)
         consumptionValue = text("— кВт·ч / 100 км", 27f, white, true)
         consumptionCard.addView(consumptionValue)
-        consumptionCard.addView(text("Расчётная оценка по ёмкости 52 кВт·ч · последние 8 интервалов по 1 км", 9f, muted))
+        consumptionCard.addView(text("Расчётная оценка по ёмкости 52 кВт·ч · последние 8 интервалов по 5 км", 9f, muted))
         content.addView(consumptionCard)
 
         addGap(content, 10)
@@ -625,9 +625,9 @@ class MainActivity : Activity() {
             val calculatedRange = db.calculatedRangeKm()
             calculatedRangeValue.text = (calculatedRange ?: latest.stockRange)?.let { "${it.toInt()} км" } ?: "— км"
             calculatedRangeHint.text = if (calculatedRange != null) {
-                "По среднему расходу SOC · последние 8 интервалов по 1 км"
+                "По среднему расходу SOC · последние 8 интервалов по 5 км"
             } else {
-                "Штатный прогноз · ожидание 8 валидных интервалов по 1 км"
+                "Штатный прогноз · ожидание 8 валидных интервалов по 5 км"
             }
             odometerValue.text = "${latest.odometer.toInt()} км"
             connectionValue.text = if (latest.online) "● АВТОМОБИЛЬ В СЕТИ" else "○ АВТОМОБИЛЬ НЕ В СЕТИ"
@@ -792,6 +792,7 @@ class MainActivity : Activity() {
                 else -> 10
             }
         }
+        var periodControlsInserted = false
         prioritized.take(10).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
@@ -800,10 +801,11 @@ class MainActivity : Activity() {
                     key.contains("12vbatteryvoltage") ||
                         listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) }
                 }
-            if (isVoltageMetric) {
+            if (isVoltageMetric && !periodControlsInserted) {
                 addGap(batteryHistoryCharts, 5)
                 batteryHistoryCharts.addView(batteryHistoryPeriodControls)
                 addGap(batteryHistoryCharts, 5)
+                periodControlsInserted = true
             } else {
                 addGap(batteryHistoryCharts, 3)
             }
@@ -849,6 +851,9 @@ class MainActivity : Activity() {
                 }
             }
         }
+        // The period selector is a single View and must only be attached once.
+        // If no voltage metric is available, keep it visible at the top of the history charts.
+        if (!periodControlsInserted) batteryHistoryCharts.addView(0, batteryHistoryPeriodControls)
         if (prioritized.size > 10) {
             addGap(batteryHistoryCharts, 6)
             batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 10) + " параметров доступны в текстовой сводке выше.", 9f, muted))
