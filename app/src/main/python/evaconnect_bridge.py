@@ -19,6 +19,8 @@ _SENSITIVE_COMPACT_KEYS = frozenset({
     "chargingstationid", "chargingpileid", "orderid", "recordid",
     "requestid", "transactionid", "paymentid", "operatorid", "groupid",
     "orgid", "pointid", "portid", "connectorid", "evseid",
+    "plate", "licenseplate", "licenceplate", "vehicleplate", "carplate",
+    "registrationnumber", "registrationplate",
 })
 
 
