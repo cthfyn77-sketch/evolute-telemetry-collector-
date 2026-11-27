@@ -37,9 +37,9 @@ class CollectorService : Service() {
         if (pollJob?.isActive == true) return START_STICKY
 
         pollJob = scope.launch {
-            val tokenStore = KeystoreTokenStore(this@CollectorService)
             while (isActive) {
                 try {
+                    val tokenStore = KeystoreTokenStore(this@CollectorService)
                     // Initialize Python and resolve the bridge inside the retry loop.
                     // A transient startup/import failure must not permanently stop polling.
                     if (!Python.isStarted()) {
