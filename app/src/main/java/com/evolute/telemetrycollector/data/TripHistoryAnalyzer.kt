@@ -88,6 +88,16 @@ internal object TripHistoryAnalyzer {
             val (currentAt, current) = ordered[index]
 
             val gapMillis = currentAt - previousAt
+
+            // A missing telemetry window is also evidence that charge state may
+            // have gone stale. Do not let a previously active session bridge a
+            // long API outage and accidentally join drives on either side of it.
+            if (charging && gapMillis > CHARGE_STATE_UNAVAILABLE_TIMEOUT_MILLIS) {
+                charging = false
+                chargeEndedAt = previousAt
+                chargeUnavailableSince = null
+            }
+
             val chargeState = chargeSessionState(current)
             if (chargeState == "active") {
                 chargeUnavailableSince = null
