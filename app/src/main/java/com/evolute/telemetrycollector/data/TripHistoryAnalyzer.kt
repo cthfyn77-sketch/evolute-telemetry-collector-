@@ -29,9 +29,14 @@ internal object TripHistoryAnalyzer {
     private const val TELEMETRY_GAP_MILLIS = 3 * 60 * 1000L
     private const val CHARGE_RESUME_WINDOW_MILLIS = 10 * 60 * 1000L
 
-    private fun chargeSessionState(snapshot: TelemetrySnapshot): String? =
-        Regex("\\\"charge_session\\\"\\s*:\\s*\\{[^}]*\\\"state\\\"\\s*:\\s*\\\"(active|inactive)\\\"")
-            .find(snapshot.sensorsJson)?.groupValues?.getOrNull(1)
+    private fun chargeSessionState(snapshot: TelemetrySnapshot): String? {
+        // Parse the charge_session object first, then its state. Keeping the
+        // match scoped avoids accidentally reading an unrelated "state" field.
+        val sessionBody = Regex("\\\"charge_session\\\"\\s*:\\s*\\{([^}]*)\\}")
+            .find(snapshot.sensorsJson)?.groupValues?.getOrNull(1) ?: return null
+        return Regex("\\\"state\\\"\\s*:\\s*\\\"(active|inactive)\\\"")
+            .find(sessionBody)?.groupValues?.getOrNull(1)
+    }
 
     fun analyze(history: List<TelemetrySnapshot>): List<TripSummary> {
         if (history.size < 2) return emptyList()
