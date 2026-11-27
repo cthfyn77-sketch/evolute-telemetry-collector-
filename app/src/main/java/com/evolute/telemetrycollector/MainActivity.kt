@@ -1019,13 +1019,13 @@ class MainActivity : Activity() {
             buildString {
                 append("Статус: зарядная сессия активна")
                 if (electrical.isNotEmpty()) {
-                    append("\n\\nПОЛЯ МОЩНОСТИ И ЭЛЕКТРИЧЕСКИХ ПАРАМЕТРОВ\\n")
+                    append("\n\nПОЛЯ МОЩНОСТИ И ЭЛЕКТРИЧЕСКИХ ПАРАМЕТРОВ\n")
                     append(electrical.take(30).joinToString("\n"))
                 } else {
-                    append("\n\\nПоля мощности, напряжения, тока или энергии в ответе пока не обнаружены.")
+                    append("\n\nПоля мощности, напряжения, тока или энергии в ответе пока не обнаружены.")
                 }
                 if (fields.isNotEmpty()) {
-                    append("\n\\nПОЛЯ ОТВЕТА API\\n")
+                    append("\n\nПОЛЯ ОТВЕТА API\n")
                     append(fields.take(80).joinToString("\n"))
                 } else append("\nAPI вернул пустой объект сессии.")
                 if (fields.size > 80) append("\n… показаны первые 80 полей")
