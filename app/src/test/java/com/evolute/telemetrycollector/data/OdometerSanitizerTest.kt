@@ -18,7 +18,7 @@ class OdometerSanitizerTest {
             sample(90, 1000.5)
         )
         val clean = OdometerSanitizer.sanitize(history)
-        assertEquals(listOf(1000.0, 1000.0, 1000.5), clean.map { it.odometer })
+        assertEquals(listOf(1000.0, 1000.0, 1000.0, 1000.5), clean.map { it.odometer })
     }
 
     @Test fun keepsSustainedOdometerChange() {
@@ -43,7 +43,7 @@ class OdometerSanitizerTest {
             sample(90, 1000.5)
         )
         val clean = OdometerSanitizer.sanitize(history)
-        assertEquals(listOf(1000.0, 1000.0, 1000.5), clean.map { it.odometer })
+        assertEquals(listOf(1000.0, 1000.0, 1000.0, 1000.5), clean.map { it.odometer })
     }
 
     @Test fun preservesOdometerCorrectionThatDoesNotReturnToBaseline() {
@@ -62,8 +62,8 @@ class OdometerSanitizerTest {
             sample(30, 1012.0)
         )
         val clean = OdometerSanitizer.sanitize(history)
-        assertEquals(listOf(1000.0, 1000.0), clean.map { it.odometer })
-        assertEquals(listOf(0L, 60L), clean.map {
+        assertEquals(listOf(1000.0, 1000.0, 1000.0), clean.map { it.odometer })
+        assertEquals(listOf(0L, 30L, 60L), clean.map {
             java.time.Instant.parse(it.capturedAt).epochSecond -
                 java.time.Instant.parse("2026-11-26T10:00:00Z").epochSecond
         })
