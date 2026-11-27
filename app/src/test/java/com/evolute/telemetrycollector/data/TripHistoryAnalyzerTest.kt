@@ -157,6 +157,39 @@ class TripHistoryAnalyzerTest {
         assertNull(stats.averagePercentPer100Km)
     }
 
+    @Test fun intermediateSocRiseInvalidatesConsumptionEvenWhenTripEndsLower() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 80.0, 1000.0),
+            sample(1, 79.0, 1000.5),
+            sample(2, 79.2, 1001.0), // meaningful +0.2 p.p. SOC rise
+            sample(3, 78.0, 1001.5),
+            sample(4, 75.0, 1002.0),
+            sample(5, 75.0, 1002.0),
+            sample(20, 75.0, 1002.0)
+        ))
+        assertEquals(1, trips.size)
+        assertNull(trips[0].socUsedPercent)
+
+        val stats = TripConsumptionAnalyzer.summarize(trips)
+        assertEquals(1, stats.tripCount)
+        assertEquals(0, stats.measuredTrips)
+        assertNull(stats.averagePercentPer100Km)
+    }
+
+    @Test fun invalidIntermediateSocInvalidatesConsumption() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 80.0, 1000.0),
+            sample(1, 79.0, 1000.5),
+            sample(2, Double.NaN, 1001.0),
+            sample(3, 77.0, 1001.5),
+            sample(4, 75.0, 1002.0),
+            sample(5, 75.0, 1002.0),
+            sample(20, 75.0, 1002.0)
+        ))
+        assertEquals(1, trips.size)
+        assertNull(trips[0].socUsedPercent)
+    }
+
     @Test fun returnsNoAverageWhenTripsHaveNoReliableSocMeasurement() {
         val trips = listOf(
             TripSummary("2026-11-26T10:00:00Z", "2026-11-26T10:10:00Z", 8.0, 600, null),
