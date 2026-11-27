@@ -30,6 +30,7 @@ class ApiClientTelemetryValidationTest {
         assertEquals("Некорректный SOC", ApiClient.validateTelemetry(telemetry(soc = 100.1)))
         assertEquals("Некорректный SOC", ApiClient.validateTelemetry(telemetry(soc = Double.NaN)))
         assertEquals("Некорректный SOC", ApiClient.validateTelemetry(telemetry(soc = Double.POSITIVE_INFINITY)))
+        assertEquals("Некорректный SOC", ApiClient.validateTelemetry(telemetry(soc = Double.NEGATIVE_INFINITY)))
     }
 
     @Test fun rejectsInvalidOdometer() {
