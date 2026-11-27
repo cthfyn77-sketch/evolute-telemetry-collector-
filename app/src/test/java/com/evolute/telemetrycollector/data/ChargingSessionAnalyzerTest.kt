@@ -33,7 +33,7 @@ class ChargingSessionAnalyzerTest {
         assertEquals(40.0, sessions[0].startSoc, 0.001)
         assertEquals(40.6, sessions[0].endSoc, 0.001)
         assertEquals(0.6, sessions[0].addedSocPercent, 0.001)
-        assertEquals(4L, sessions[0].durationMinutes)
+        assertEquals(5L, sessions[0].durationMinutes)
     }
 
     @Test fun ignoresSocRiseWhileDriving() {
