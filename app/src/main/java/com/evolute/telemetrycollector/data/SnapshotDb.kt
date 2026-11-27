@@ -108,7 +108,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
         val sql = if (capturedAfter == null) {
             "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots ORDER BY id ASC"
         } else {
-            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots WHERE captured_at >= ? ORDER BY id ASC"
+            "SELECT captured_at,api_updated_at,soc,odometer,stock_range,online,ready,sensors_json FROM snapshots WHERE julianday(captured_at) >= julianday(?) ORDER BY id ASC"
         }
         val args = if (capturedAfter == null) null else arrayOf(capturedAfter)
         return readableDatabase.rawQuery(sql, args).use { c ->
