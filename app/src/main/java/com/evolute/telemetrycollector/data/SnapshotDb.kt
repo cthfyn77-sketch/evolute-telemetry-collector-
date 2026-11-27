@@ -164,7 +164,7 @@ class SnapshotDb private constructor(c: Context) : SQLiteOpenHelper(c, "evolute_
 
     private fun compactChargeSessionJson(raw: String): String = try {
         val state = JSONObject(raw).optJSONObject("charge_session")?.optString("state")
-        if (state in setOf("active", "inactive", "unavailable")) {
+        if (state == "active" || state == "inactive" || state == "unavailable") {
             JSONObject().put(
                 "charge_session",
                 JSONObject().put("state", state)
