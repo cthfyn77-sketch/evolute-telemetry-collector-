@@ -7,6 +7,13 @@ class TripHistoryAnalyzerTest {
     private fun sample(minute: Int, soc: Double, odometer: Double) =
         TelemetrySnapshot("2026-11-26T10:${minute.toString().padStart(2, '0')}:00Z", soc, odometer, null, true, true, "{}")
 
+    private fun chargeSample(minute: Int, soc: Double, odometer: Double, state: String) =
+        TelemetrySnapshot(
+            "2026-11-26T10:${minute.toString().padStart(2, '0')}:00Z",
+            soc, odometer, null, true, true,
+            """{"charge_session":{"state":"$state"}}"""
+        )
+
     @Test fun groupsOdometerMovementIntoTripAndCalculatesSocUse() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 90.0, 1000.0),
@@ -20,6 +27,44 @@ class TripHistoryAnalyzerTest {
         assertEquals(120L, trips[0].durationSeconds)
         assertEquals(30.0, trips[0].averageSpeedKmh!!, 0.001)
         assertEquals(1.0, trips[0].socUsedPercent!!, 0.001)
+    }
+
+    @Test fun keepsTripOpenAcrossChargeAndJoinsMovementWithinTenMinutes() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"), // charging starts within 15 minutes
+            chargeSample(25, 94.0, 1001.0, "active"), // long charge; trip stays open
+            chargeSample(30, 94.0, 1001.0, "inactive"),
+            sample(35, 93.5, 1001.5), // movement resumes 5 minutes after charging
+            sample(36, 93.0, 1002.0),
+            sample(51, 93.0, 1002.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(2.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:00:00Z", trips[0].startedAt)
+        assertEquals("2026-11-26T10:36:00Z", trips[0].endedAt)
+        assertNull("SOC rise during charging must invalidate trip consumption", trips[0].socUsedPercent)
+    }
+
+    @Test fun closesTripTenMinutesAfterChargeWhenMovementDoesNotResume() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 90.0, 1000.0),
+            sample(1, 89.5, 1000.5),
+            sample(2, 89.0, 1001.0),
+            chargeSample(10, 89.0, 1001.0, "active"),
+            chargeSample(25, 94.0, 1001.0, "active"),
+            chargeSample(30, 94.0, 1001.0, "inactive"),
+            sample(41, 94.0, 1001.0),
+            sample(42, 94.0, 1001.0),
+            sample(43, 94.0, 1001.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(1.0, trips[0].distanceKm, 0.001)
+        assertEquals("2026-11-26T10:25:00Z", trips[0].endedAt)
     }
 
     @Test fun separatesTripsAfterFifteenMinuteStop() {
