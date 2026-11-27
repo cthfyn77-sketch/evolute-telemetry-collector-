@@ -48,6 +48,8 @@ class MainActivity : Activity() {
     private lateinit var batteryMetricsValue: TextView
     private lateinit var batteryHistoryValue: TextView
     private lateinit var batteryHistoryCharts: LinearLayout
+    private lateinit var batteryHistoryPeriodControls: LinearLayout
+    private var batteryHistoryPeriodHours: Long? = 4L
     private lateinit var apiFieldsValue: TextView
     private lateinit var apiFieldsCard: LinearLayout
     private lateinit var sensorReadingsContent: LinearLayout
@@ -70,6 +72,7 @@ class MainActivity : Activity() {
     private lateinit var chargingHistoryValue: TextView
     private var lastTripHistoryRecordCount = -1L
     private var lastBatteryHistoryRecordCount = -1L
+    private var lastDistanceHistoryRecordCount = -1L
     private lateinit var store: KeystoreTokenStore
     private val csvRequest = 72
 
@@ -325,16 +328,17 @@ class MainActivity : Activity() {
 
         addGap(content, 10)
         val batteryHistoryCard = card()
-        batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ · 4 ЧАСА", 11f, white, true))
+        batteryHistoryCard.addView(text("ИСТОРИЯ БАТАРЕИ", 11f, white, true))
         addGap(batteryHistoryCard, 6)
-        batteryHistoryCard.addView(text("История датчиков из локальной базы · события показывают возможные сбои телеметрии, а не неисправность автомобиля", 9f, muted))
-        addGap(batteryHistoryCard, 8)
+        batteryHistoryCard.addView(text("Период графиков датчиков · данные сохраняются локально и не удаляются при переключении периода", 9f, muted))
+        batteryHistoryPeriodControls = row().apply { gravity = Gravity.CENTER_VERTICAL }
         batteryHistoryValue = text("Ожидание истории батареи", 10f, white)
         batteryHistoryValue.setLineSpacing(dp(2).toFloat(), 1f)
         batteryHistoryCard.addView(batteryHistoryValue)
         addGap(batteryHistoryCard, 10)
         batteryHistoryCharts = column()
         batteryHistoryCard.addView(batteryHistoryCharts)
+        renderBatteryHistoryPeriodControls()
         content.addView(batteryHistoryCard)
 
         addGap(content, 10)
@@ -367,7 +371,6 @@ class MainActivity : Activity() {
         addGap(distanceChartCard, 8)
         distanceChart = TelemetryChartView(this, TelemetryChartView.AxisMode.DISTANCE)
         distanceChartCard.addView(distanceChart, LinearLayout.LayoutParams(-1, dp(176)))
-        distanceChartCard.visibility = View.GONE
         content.addView(distanceChartCard)
 
         addGap(content, 12)
@@ -643,9 +646,7 @@ class MainActivity : Activity() {
         rangeHistoryChart.setSnapshots(db.recentSnapshots(240))
         apiFieldsValue.text = latest?.let { formatApiFields(it.sensorsJson) } ?: "Ожидание первой телеметрии"
         if (snapshotCount != lastBatteryHistoryRecordCount) {
-            val batteryHistory = BatteryHistoryAnalyzer.analyze(db.recentSnapshots(480))
-            batteryHistoryValue.text = BatteryHistoryAnalyzer.render(batteryHistory)
-            renderBatteryMetricCharts(batteryHistory.metrics)
+            refreshBatteryHistory(db)
             lastBatteryHistoryRecordCount = snapshotCount
         }
         batteryMetricsValue.text = if (latest != null) {
@@ -666,15 +667,52 @@ class MainActivity : Activity() {
             renderChargingHistory(fullHistory)
             lastTripHistoryRecordCount = snapshotCount
         }
-        // Keep time and mileage axes independent: time uses recent samples,
-        // distance uses the complete local history with parked samples collapsed.
+        // Keep time and mileage axes independent. The distance chart uses the full
+        // locally retained history; TelemetryChartView collapses parked samples.
         val recentHistory = db.recentSnapshots(240)
         timeChartCard.visibility = if (recentHistory.size >= 2) View.VISIBLE else View.GONE
-        distanceChartCard.visibility = View.GONE
         timeChart.setSnapshots(recentHistory)
+        if (snapshotCount != lastDistanceHistoryRecordCount) {
+            val distanceHistory = db.allSnapshots(20000)
+            distanceChart.setSnapshots(distanceHistory)
+            val hasDistanceSpan = distanceHistory.map { it.odometer }.distinct().size >= 2
+            distanceChartCard.visibility = if (hasDistanceSpan) View.VISIBLE else View.GONE
+            lastDistanceHistoryRecordCount = snapshotCount
+        }
     }
 
 
+    private fun renderBatteryHistoryPeriodControls() {
+        batteryHistoryPeriodControls.removeAllViews()
+        val periods = listOf(
+            "4 ч" to 4L,
+            "24 ч" to 24L,
+            "7 дн" to 24L * 7L,
+            "Всё" to null
+        )
+        periods.forEachIndexed { index, item ->
+            if (index > 0) batteryHistoryPeriodControls.addView(View(this), LinearLayout.LayoutParams(dp(5), 1))
+            val selected = batteryHistoryPeriodHours == item.second
+            val button = actionButton(item.first, if (selected) accent else surface2, if (selected) bg else white) {
+                batteryHistoryPeriodHours = item.second
+                renderBatteryHistoryPeriodControls()
+                refreshBatteryHistory(SnapshotDb.get(this))
+            }
+            button.textSize = 10f
+            button.setPadding(dp(9), dp(10), dp(9), dp(10))
+            batteryHistoryPeriodControls.addView(button, LinearLayout.LayoutParams(0, -2, 1f))
+        }
+    }
+
+    private fun refreshBatteryHistory(db: SnapshotDb) {
+        val cutoff = batteryHistoryPeriodHours?.let { hours ->
+            java.time.Instant.now().minusSeconds(hours * 3600L).toString()
+        }
+        val history = db.batteryHistorySnapshots(cutoff)
+        val report = BatteryHistoryAnalyzer.analyze(history)
+        batteryHistoryValue.text = BatteryHistoryAnalyzer.render(report)
+        renderBatteryMetricCharts(report.metrics)
+    }
     /** Convert common battery sensor JSON paths into readable Russian chart titles. */
     private fun batteryMetricDisplayName(path: String): String {
         val key = path.lowercase(java.util.Locale.ROOT)
@@ -757,7 +795,18 @@ class MainActivity : Activity() {
         prioritized.take(10).forEachIndexed { index, metric ->
             if (index > 0) addGap(batteryHistoryCharts, 12)
             batteryHistoryCharts.addView(text(batteryMetricDisplayName(metric.path), 10f, accent, true))
-            addGap(batteryHistoryCharts, 3)
+            val isVoltageMetric = metric.path.lowercase(java.util.Locale.ROOT)
+                .replace(Regex("[^a-zа-я0-9]"), "").let { key ->
+                    key.contains("12vbatteryvoltage") ||
+                        listOf("voltage", "volt", "batteryvoltage", "packvoltage").any { key.contains(it) }
+                }
+            if (isVoltageMetric) {
+                addGap(batteryHistoryCharts, 5)
+                batteryHistoryCharts.addView(batteryHistoryPeriodControls)
+                addGap(batteryHistoryCharts, 5)
+            } else {
+                addGap(batteryHistoryCharts, 3)
+            }
             val hasGap = metric.points.zipWithNext().any {
                 java.time.Duration.between(it.first.at, it.second.at).toMinutes() > 10
             }
