@@ -98,6 +98,7 @@ internal object TripHistoryAnalyzer {
                 chargeUnavailableSince = null
             }
 
+            val wasCharging = charging
             val chargeState = chargeSessionState(current)
             if (chargeState == "active") {
                 chargeUnavailableSince = null
@@ -184,9 +185,11 @@ internal object TripHistoryAnalyzer {
                     // Movement resumed within the post-charge grace period.
                     chargeEndedAt = null
                 }
-            } else if (active != null && charging) {
-                // Include charging SOC samples so charge-related SOC increases
-                // invalidate trip consumption rather than appearing as low usage.
+            } else if (active != null && (charging || wasCharging)) {
+                // Include every sample observed during a confirmed charge session,
+                // including the final inactive sample and brief unavailable periods.
+                // Otherwise a temporary SOC rise could be missed and consumption
+                // would be reported from an incomplete sequence.
                 active?.add(current)
             } else if (active != null && currentAt - lastMovementAt >= STOP_GAP_MILLIS &&
                 !charging && chargeEndedAt == null) {
