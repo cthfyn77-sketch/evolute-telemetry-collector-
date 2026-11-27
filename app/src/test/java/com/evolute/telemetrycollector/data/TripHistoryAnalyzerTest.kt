@@ -239,6 +239,21 @@ class TripHistoryAnalyzerTest {
         assertNull(stats.averagePercentPer100Km)
     }
 
+    @Test fun smallSocRiseBelowNoiseThresholdDoesNotInvalidateConsumption() {
+        val trips = TripHistoryAnalyzer.analyze(listOf(
+            sample(0, 80.0, 1000.0),
+            sample(1, 79.0, 1000.5),
+            sample(2, 79.19, 1001.0), // +0.19 p.p., below the 0.2 p.p. rejection threshold
+            sample(3, 78.0, 1001.5),
+            sample(4, 77.0, 1002.0),
+            sample(5, 77.0, 1002.0),
+            sample(20, 77.0, 1002.0)
+        ))
+
+        assertEquals(1, trips.size)
+        assertEquals(3.0, trips[0].socUsedPercent!!, 0.001)
+    }
+
     @Test fun invalidIntermediateSocInvalidatesConsumption() {
         val trips = TripHistoryAnalyzer.analyze(listOf(
             sample(0, 80.0, 1000.0),
