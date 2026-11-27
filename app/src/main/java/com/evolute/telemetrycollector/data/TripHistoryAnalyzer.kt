@@ -49,7 +49,8 @@ internal object TripHistoryAnalyzer {
             if (!distance.isFinite() || distance < MIN_TRIP_DISTANCE_KM) return
             val startTime = try { Instant.parse(start.capturedAt) } catch (_: Exception) { return }
             val endTime = try { Instant.parse(end.capturedAt) } catch (_: Exception) { return }
-            val duration = Duration.between(startTime, endTime).seconds.coerceAtLeast(0)
+            val duration = Duration.between(startTime, endTime).seconds
+            if (duration <= 0L) return
             // SOC endpoints must each be valid; a plausible difference between two
             // out-of-range readings is not a trustworthy consumption measurement.
             // A trip's endpoint delta is not reliable if any intermediate SOC
