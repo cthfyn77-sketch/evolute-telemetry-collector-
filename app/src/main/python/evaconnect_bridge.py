@@ -81,6 +81,19 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
             car_id = client.default_car_id()
             telemetry = client.get_telemetry(car_id=car_id)
             sensors = dict(getattr(telemetry, "sensors", None) or {})
+            # Charge-session telemetry is a separate EVACONNECT endpoint.
+            # Its failure must not interrupt the primary vehicle telemetry loop.
+            try:
+                charge_session = client.get_charge_session()
+                charge_payload = (
+                    {"state": "inactive"} if charge_session is None
+                    else {"state": "active", "data": getattr(charge_session, "api_raw", {})}
+                )
+            except Exception as charge_exc:
+                charge_payload = {
+                    "state": "unavailable",
+                    "error_type": type(charge_exc).__name__,
+                }
             soc = sensors.get("batteryPercentage")
             odometer = sensors.get("odometer")
             stock_range = sensors.get("remainsBatteryMileage")
@@ -97,10 +110,13 @@ def fetch_telemetry(access_token: str, refresh_token: str) -> str:
                 # Preserve the complete decoded telemetry response, including
                 # top-level fields and every sensor. Redact account/vehicle identifiers.
                 "sensors_json": json.dumps(
-                    _redact_api_value(
-                        getattr(telemetry, "api_raw", None)
-                        or {"sensors": getattr(telemetry, "sensors_raw", None) or sensors}
-                    ),
+                    _redact_api_value({
+                        **(
+                            getattr(telemetry, "api_raw", None)
+                            or {"sensors": getattr(telemetry, "sensors_raw", None) or sensors}
+                        ),
+                        "charge_session": charge_payload,
+                    }),
                     ensure_ascii=False,
                     separators=(",", ":"),
                     default=str,
