@@ -19,6 +19,23 @@ class ChargingSessionAnalyzerTest {
         assertEquals(3L, sessions[0].durationMinutes)
     }
 
+    @Test fun accumulatesSmallSocRisesAfterSessionStarts() {
+        val sessions = ChargingSessionAnalyzer.analyze(listOf(
+            sample(0, 40.0),
+            sample(1, 40.2),
+            sample(2, 40.3),
+            sample(3, 40.4),
+            sample(4, 40.5),
+            sample(5, 40.6),
+            sample(10, 40.6)
+        ))
+        assertEquals(1, sessions.size)
+        assertEquals(40.0, sessions[0].startSoc, 0.001)
+        assertEquals(40.6, sessions[0].endSoc, 0.001)
+        assertEquals(0.6, sessions[0].addedSocPercent, 0.001)
+        assertEquals(4L, sessions[0].durationMinutes)
+    }
+
     @Test fun ignoresSocRiseWhileDriving() {
         val sessions = ChargingSessionAnalyzer.analyze(listOf(
             sample(0, 40.0, 1000.0), sample(1, 40.5, 1000.5),
