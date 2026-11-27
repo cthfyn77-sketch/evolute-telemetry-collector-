@@ -41,7 +41,49 @@ internal object RangeEstimator {
         } else history
     }
 
-    fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
+
+    /**
+     * A brief stationary SOC dip followed by a return to the previous level is
+     * treated as a sensor outlier only when EVACONNECT explicitly reports that
+     * no charging session is active. Unknown/unavailable charge state remains
+     * conservative and follows the normal SOC-rise reset path.
+     */
+    private fun isRecoveredStationarySocOutlier(
+        previous: TelemetrySnapshot,
+        current: TelemetrySnapshot,
+        baselineDistance: Double,
+        baselineSoc: Double
+    ): Boolean {
+        val chargeState = try {
+            org.json.JSONObject(current.sensorsJson)
+                .optJSONObject("charge_session")
+                ?.optString("state")
+        } catch (_: Exception) {
+            null
+        }
+        if (chargeState != "inactive") return false
+
+        val distanceFromBaseline = current.odometer - baselineDistance
+        if (!distanceFromBaseline.isFinite() ||
+            distanceFromBaseline < -EPSILON ||
+            distanceFromBaseline > 0.1 + EPSILON) return false
+
+        val dip = baselineSoc - previous.soc
+        val recovery = current.soc - previous.soc
+        val returnedToBaseline = kotlin.math.abs(current.soc - baselineSoc) <= CHARGE_RISE_SOC
+        if (dip < CHARGE_RISE_SOC || recovery < CHARGE_RISE_SOC || !returnedToBaseline) return false
+
+        return try {
+            val elapsed = java.time.Duration.between(
+                java.time.Instant.parse(previous.capturedAt),
+                java.time.Instant.parse(current.capturedAt)
+            ).toMillis()
+            elapsed in 0..TELEMETRY_GAP_MILLIS
+        } catch (_: Exception) {
+            false
+        }
+    }
+\n    fun metrics(history: List<TelemetrySnapshot>): RangeMetrics? {
         if (history.size < 2) return null
         val ordered = chronological(history)
         val first = ordered.first()
