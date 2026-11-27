@@ -119,4 +119,19 @@ class BatteryHistoryAnalyzerTest {
         val report = BatteryHistoryAnalyzer.analyze(history)
         assertTrue(!BatteryHistoryAnalyzer.render(report).contains("есть пропуск данных"))
     }
+
+    
+    @Test fun chartGapDetectionUsesExactTenMinuteThreshold() {
+        val start = java.time.Instant.parse("2026-11-27T12:00:00Z")
+        val exactlyTenMinutes = listOf(
+            BatteryHistoryAnalyzer.MetricPoint(start, 350.0),
+            BatteryHistoryAnalyzer.MetricPoint(start.plusSeconds(600), 351.0)
+        )
+        val tenMinutesOneSecond = listOf(
+            BatteryHistoryAnalyzer.MetricPoint(start, 350.0),
+            BatteryHistoryAnalyzer.MetricPoint(start.plusSeconds(601), 351.0)
+        )
+        assertTrue(!BatteryHistoryAnalyzer.hasTelemetryGap(exactlyTenMinutes))
+        assertTrue(BatteryHistoryAnalyzer.hasTelemetryGap(tenMinutesOneSecond))
+    }
 }
