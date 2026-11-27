@@ -15,7 +15,10 @@ _SENSITIVE_KEY = re.compile(
 _SENSITIVE_COMPACT_KEYS = frozenset({
     "accountid", "ownerid", "customerid", "driverid", "deviceid",
     "sessionid", "tripid", "tenantid", "organizationid", "userid",
-    "carid", "vehicleid", "widgetid", "userid",
+    "carid", "vehicleid", "widgetid", "chargerid", "stationid",
+    "chargingstationid", "chargingpileid", "orderid", "recordid",
+    "requestid", "transactionid", "paymentid", "operatorid", "groupid",
+    "orgid", "pointid", "portid", "connectorid", "evseid",
 })
 
 
