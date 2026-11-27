@@ -42,7 +42,7 @@ class TripHistoryAnalyzerTest {
             sample(51, 93.0, 1002.0)
         ))
 
-        assertEquals(1, trips.size)
+        assertEquals("Unexpected trips after charge/resume: $trips", 1, trips.size)
         assertEquals(2.0, trips[0].distanceKm, 0.001)
         assertEquals("2026-11-26T10:00:00Z", trips[0].startedAt)
         assertEquals("2026-11-26T10:36:00Z", trips[0].endedAt)
@@ -64,7 +64,7 @@ class TripHistoryAnalyzerTest {
 
         assertEquals(1, trips.size)
         assertEquals(1.0, trips[0].distanceKm, 0.001)
-        assertEquals("2026-11-26T10:25:00Z", trips[0].endedAt)
+        assertEquals("Unexpected trip end after charge timeout: $trips", "2026-11-26T10:25:00Z", trips[0].endedAt)
     }
 
     @Test fun separatesTripsAfterFifteenMinuteStop() {
