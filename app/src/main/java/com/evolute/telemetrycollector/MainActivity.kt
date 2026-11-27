@@ -853,7 +853,7 @@ class MainActivity : Activity() {
         }
         // The period selector is a single View and must only be attached once.
         // If no voltage metric is available, keep it visible at the top of the history charts.
-        if (!periodControlsInserted) batteryHistoryCharts.addView(0, batteryHistoryPeriodControls)
+        if (!periodControlsInserted) batteryHistoryCharts.addView(batteryHistoryPeriodControls, 0)
         if (prioritized.size > 10) {
             addGap(batteryHistoryCharts, 6)
             batteryHistoryCharts.addView(text("Ещё " + (prioritized.size - 10) + " параметров доступны в текстовой сводке выше.", 9f, muted))
