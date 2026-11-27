@@ -76,6 +76,10 @@ class CollectorService : Service() {
                         updatedAt = result.optString("updated_at").takeIf { it.isNotBlank() },
                         sensorsJson = result.optString("sensors_json", "{}")
                     )
+                    val validationError = ApiClient.validateTelemetry(telemetry)
+                    if (validationError != null) {
+                        throw IOException(validationError)
+                    }
                     SnapshotDb.get(this@CollectorService).insert(telemetry)
                     updateNotification("evaconnect: получены данные. SOC ${telemetry.soc}%")
                 } catch (e: CancellationException) {
