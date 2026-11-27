@@ -314,6 +314,10 @@ class EvoluteClient:
         data = self._json(response)
         if data is None or data == {}:
             return None
+        if not isinstance(data, dict):
+            raise EvoluteAPIError(
+                "GET /charge-service/session/v2/current returned a non-object response"
+            )
         session = ChargeSession.model_validate(data)
         # Preserve the exact decoded API payload; the Android bridge redacts
         # credentials and account/vehicle identifiers before local persistence.
