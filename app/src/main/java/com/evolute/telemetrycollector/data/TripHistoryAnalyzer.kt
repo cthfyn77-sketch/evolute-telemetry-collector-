@@ -54,7 +54,7 @@ internal object TripHistoryAnalyzer {
             // out-of-range readings is not a trustworthy consumption measurement.
             val socUsed = if (start.soc.isFinite() && end.soc.isFinite() &&
                 start.soc in 0.0..100.0 && end.soc in 0.0..100.0) {
-                (start.soc - end.soc).takeIf { it.isFinite() && it in 0.0..100.0 }
+                (start.soc - end.soc).takeIf { it.isFinite() && it > 0.0 && it <= 100.0 }
             } else null
             trips.add(TripSummary(start.capturedAt, end.capturedAt, distance, duration, socUsed))
         }
