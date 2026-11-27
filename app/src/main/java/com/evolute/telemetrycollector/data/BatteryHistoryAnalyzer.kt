@@ -24,23 +24,24 @@ internal object BatteryHistoryAnalyzer {
 
     fun analyze(history: List<TelemetrySnapshot>): Report {
         val points = linkedMapOf<String, MutableList<MetricPoint>>()
-        val sensorSocExists = history.any { sample ->
-            extract(sample.sensorsJson).keys.any { key ->
-                key.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
-                    it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
-                }
-            }
-        }
+        // Pick the sensor's SOC field name once so snapshots without a nested SOC
+        // value can fill the same series from the first-class snapshot column.
+        val sensorSocPath = history.asSequence()
+            .map { extract(it.sensorsJson).keys.firstOrNull { key -> isSocPath(key) } }
+            .firstOrNull { it != null }
+        val fallbackSocPath = sensorSocPath ?: "SOC"
         history.forEach { sample ->
             val at = try { Instant.parse(sample.capturedAt) } catch (_: Exception) { null } ?: return@forEach
             val sensorValues = extract(sample.sensorsJson)
             sensorValues.forEach { (path, value) ->
                 points.getOrPut(path) { mutableListOf() }.add(MetricPoint(at, value, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
-            // SOC is stored as a first-class snapshot field, even when EVACONNECT
-            // does not expose it again inside the nested sensor JSON.
-            if (!sensorSocExists && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
-                points.getOrPut("SOC") { mutableListOf() }.add(MetricPoint(at, sample.soc, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
+            // SOC is stored as a first-class snapshot field. Fall back per sample,
+            // not per entire history, when the nested sensor value is absent.
+            val hasSensorSoc = sensorValues.keys.any { isSocPath(it) }
+            if (!hasSensorSoc && sample.soc.isFinite() && sample.soc in 0.0..100.0) {
+                points.getOrPut(fallbackSocPath) { mutableListOf() }
+                    .add(MetricPoint(at, sample.soc, sample.odometer.takeIf { it.isFinite() && it >= 0.0 }))
             }
         }
         val alerts = mutableListOf<String>()
@@ -68,6 +69,11 @@ internal object BatteryHistoryAnalyzer {
         }.sortedBy { it.path.lowercase(Locale.ROOT) }
         return Report(metrics, alerts.take(8))
     }
+
+    private fun isSocPath(path: String): Boolean =
+        path.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]"), "").let {
+            it.contains("soc") || it.contains("stateofcharge") || it.contains("chargelevel")
+        }
 
     /** Indexes of short-lived outliers; never bridge a telemetry gap over 3 minutes. */
     private fun isolatedSpikeIndexes(values: List<MetricPoint>): Set<Int> {
